@@ -1,3 +1,36 @@
+## Configuración del entorno
+
+Antes de ejecutar el proyecto por primera vez, es necesario crear el archivo de variables de entorno.
+
+Copiar el archivo .env.example y renombrarlo como .env.local
+
+```bash
+cp .env.example .env.local
+```
+Completar las variables requeridas con los valores correspondientes según el entorno local.
+
+Por ejemplo:
+
+```bash
+NEXT_PUBLIC_BACKEND_URL=http://localhost:<nro_puerto>
+```
+
+Estas variables permiten configurar la conexión con el backend y otros parámetros necesarios para la ejecución del proyecto.
+
+## Ejecución del proyecto
+
+Una vez configurado el archivo .env.local, ejecutar:
+
+```bash
+npm install
+npm run dev
+```
+
+La aplicación quedará disponible en la dirección configurada mediante las variables de entorno definidas en el archivo .env.local
+
+
+
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
