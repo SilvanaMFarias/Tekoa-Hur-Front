@@ -16,3 +16,12 @@ export const alumnos = [
   { id: 33333333, apellido: "Amarillo", nombre: "Yamil" },
   { id: 44444444, apellido: "Miranda", nombre: "Tomás" },
 ];
+
+export const Materias = [ 
+  { id: 1, nombre: "Proyecto" },
+  { id: 2, nombre: "Programación" },
+]; 
+
+export const Comisiones = [ 
+  { id: 3, nombre: "Comisión 1", materiaId: 1 },
+];
