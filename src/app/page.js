@@ -5,7 +5,6 @@ export default function Home() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-gray-100">
       <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-lg">
-
         {/* Logo */}
         <div className="flex justify-center">
           <Image
@@ -24,14 +23,18 @@ export default function Home() {
 
         {/* Botones */}
         <div className="flex flex-col gap-4">
-
           <Link
             href="/generar-qr"
             className="rounded-xl bg-blue-600 px-4 py-3 text-center font-medium text-white transition hover:bg-blue-700"
           >
             Generar QR del aula
           </Link>
-
+          <Link
+            href="/leer-qr"
+            className="rounded-xl bg-gray-600 px-4 py-3 text-center font-medium text-white transition hover:bg-gray-700"
+          >
+            Lectura de QR
+          </Link>
           <Link
             href="/asistencia"
             className="rounded-xl bg-green-600 px-4 py-3 text-center font-medium text-white transition hover:bg-green-700"
@@ -42,7 +45,7 @@ export default function Home() {
             href="/prueba-conexion"
             className="rounded-xl bg-emerald-600 px-4 py-3 text-center font-medium text-white transition hover:bg-emerald-700"
           >
-          Prueba de conexión
+            Prueba de conexión
           </Link>
         </div>
       </div>
