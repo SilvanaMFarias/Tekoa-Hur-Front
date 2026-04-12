@@ -14,7 +14,7 @@ export default function HomePage() {
         setError("");
 
         const response = await fetch(
-          "http://localhost:3001/api/estudiantes"
+        `${process.env.NEXT_PUBLIC_BACK_URL}/api/estudiantes`
         );
 
         if (!response.ok) {
