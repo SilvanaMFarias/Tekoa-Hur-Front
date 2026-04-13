@@ -14,6 +14,11 @@ Por ejemplo:
 ```bash
 NEXT_PUBLIC_BACKEND_URL=http://localhost:<nro_puerto>
 ```
+Adicionalmente hay que configurar usuario y clave para poder usar los endpoints
+```bash
+NEXT_PUBLIC_BASIC_USER=nombre_usuario
+NEXT_PUBLIC_BASIC_PASS=clave_usuario
+```
 
 Estas variables permiten configurar la conexión con el backend y otros parámetros necesarios para la ejecución del proyecto.
 
