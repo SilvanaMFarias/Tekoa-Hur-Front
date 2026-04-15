@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Html5Qrcode } from "html5-qrcode";
+import { useRouter } from "next/navigation";
+import { Button } from "@mui/material";
 
 export default function LectorQR() {
   const qrRef = useRef(null);
@@ -10,6 +12,7 @@ export default function LectorQR() {
   const [error, setError] = useState("");
   const [camaras, setCamaras] = useState([]);
   const [camaraId, setCamaraId] = useState("");
+  const router = useRouter();
 
   useEffect(() => {
     let mounted = true;
@@ -67,8 +70,7 @@ export default function LectorQR() {
           setResultado(decodedText);
           detenerScanner();
         },
-        () => {
-        },
+        () => {},
       );
 
       setEscaneando(true);
@@ -211,6 +213,21 @@ export default function LectorQR() {
           <p className="text-sm font-semibold text-red-700">{error}</p>
         </div>
       )}
+      <Button
+        variant="outlined"
+        color="error"
+        fullWidth
+        onClick={() => router.push("/")}
+        sx={{
+          mt: 3,
+          py: 1.5,
+          borderRadius: 3,
+          textTransform: "none",
+          fontWeight: 500,
+        }}
+      >
+        Cancelar
+      </Button>
     </div>
   );
 }

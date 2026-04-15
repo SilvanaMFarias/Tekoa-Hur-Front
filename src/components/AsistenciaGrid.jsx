@@ -1,15 +1,20 @@
 "use client";
 
-import { useMemo} from "react";
+import { useMemo } from "react";
 import { DataGrid } from "@mui/x-data-grid";
-import { Box, Typography } from "@mui/material";
+import { useRouter } from "next/navigation";
+import { Box, Typography, Button } from "@mui/material";
 
 export default function AsistenciaGrid({ fechas, alumnos, asistencias }) {
   const asistenciaSet = useMemo(() => {
     return new Set(
-      asistencias.map((asistencia) => `${asistencia.alumnoId}-${asistencia.fecha}`)
+      asistencias.map(
+        (asistencia) => `${asistencia.alumnoId}-${asistencia.fecha}`,
+      ),
     );
   }, [asistencias]);
+
+  const router = useRouter();
 
   const fechasOrdenadas = useMemo(() => {
     return [...fechas].sort((a, b) => new Date(a) - new Date(b));
@@ -122,6 +127,21 @@ export default function AsistenciaGrid({ fechas, alumnos, asistencias }) {
           />
         </Box>
       </Box>
+      <Button
+        variant="outlined"
+        color="error"
+        fullWidth
+        onClick={() => router.push("/")}
+        sx={{
+          mt: 3,
+          py: 1.5,
+          borderRadius: 3,
+          textTransform: "none",
+          fontWeight: 500,
+        }}
+      >
+        Volver
+      </Button>
     </Box>
   );
 }
