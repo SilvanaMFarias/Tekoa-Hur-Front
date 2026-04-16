@@ -1,9 +1,10 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import RegistroAsistencia from "@/components/RegistroAsistencia";
+import { useSearchParams } from "next/navigation";
 
-export default function RegistroAsistenciaPage() {
+function PageContent() {
   const searchParams = useSearchParams();
 
   const edificioId = searchParams.get("edificioId");
@@ -16,5 +17,13 @@ export default function RegistroAsistenciaPage() {
       aulaId={aulaId}
       rtoken={rtoken}
     />
+  );
+}
+
+export default function RegistroAsistenciaPage() {
+  return (
+    <Suspense fallback={<div>Cargando...</div>}>
+      <PageContent />
+    </Suspense>
   );
 }
