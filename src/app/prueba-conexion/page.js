@@ -14,7 +14,14 @@ export default function HomePage() {
         setError("");
 
         const response = await fetch(
-        `${process.env.NEXT_PUBLIC_BACK_URL}/api/estudiantes`
+          `${process.env.NEXT_PUBLIC_BACK_URL}/api/estudiantes`,
+          {
+            headers: {
+              "Authorization": `Basic ${btoa(
+                `${process.env.NEXT_PUBLIC_BASIC_USER}:${process.env.NEXT_PUBLIC_BASIC_PASS}`
+              )}`
+            }
+          }
         );
 
         if (!response.ok) {
@@ -22,7 +29,6 @@ export default function HomePage() {
         }
 
         const data = await response.json();
-
         setEstudiantes(data);
       } catch (err) {
         setError("No se pudo conectar con el backend");
@@ -55,7 +61,6 @@ export default function HomePage() {
               <th style={thStyle}>Nombre y apellido</th>
             </tr>
           </thead>
-
           <tbody>
             {estudiantes.map((estudiante) => (
               <tr key={estudiante.dni}>
