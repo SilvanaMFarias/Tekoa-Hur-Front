@@ -14,6 +14,11 @@ Por ejemplo:
 ```bash
 NEXT_PUBLIC_BACKEND_URL=http://localhost:<nro_puerto>
 ```
+Adicionalmente hay que configurar usuario y clave para poder usar los endpoints
+```bash
+NEXT_PUBLIC_BASIC_USER=nombre_usuario
+NEXT_PUBLIC_BASIC_PASS=clave_usuario
+```
 
 Estas variables permiten configurar la conexión con el backend y otros parámetros necesarios para la ejecución del proyecto.
 
@@ -30,44 +35,35 @@ La aplicación quedará disponible en la dirección configurada mediante las var
 
 
 
+## Estructura de archivos
 
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+A continuación se describe la organización del frontend del sistema Tekoá-Hur y la finalidad de cada carpeta principal.
 
-## Getting Started
+### /src/app
+Contiene las rutas de la aplicación utilizando el App Router de Next.js.
+Cada subcarpeta dentro de app representa una pantalla del sistema.
 
-First, run the development server:
+* Definir las páginas del sistema
+* Organizar la navegación
+* Estructurar layouts globales
+* Centralizar la entrada principal de la aplicación
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+### /src/components
+Contiene los componentes reutilizables de la interfaz.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+* Encapsular lógica visual reutilizable
+* Evitar duplicación de código
+* Separar UI de lógica de navegación
+* Facilitar mantenimiento y escalabilidad
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### /src/config
+Contiene configuraciones globales del frontend.
 
-## Learn More
+### /public
+Contiene archivos estáticos accesibles directamente desde el navegador.
 
-To learn more about Next.js, take a look at the following resources:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-
-## version
-"next": "16.2.2",
-"react": "19.2.4",
+## Versiones necesarias
+Next: 16.2.2
+React: 19.2.4
