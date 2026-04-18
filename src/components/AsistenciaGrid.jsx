@@ -37,8 +37,8 @@ export default function AsistenciaGrid({ fechas, alumnos, asistencias }) {
         pinned: "left",
       },
       {
-        field: "nombre",
-        headerName: "Nombre",
+        field: "tipo",
+        headerName: "Tipo",
         minWidth: 100,
         flex: 1,
         pinned: "left",
@@ -87,7 +87,7 @@ export default function AsistenciaGrid({ fechas, alumnos, asistencias }) {
         const fila = {
           id: alumno.id,
           apellido: alumno.apellido,
-          nombre: alumno.nombre,
+          tipo: alumno.tipo,
         };
 
         fechasOrdenadas.forEach((fecha) => {
