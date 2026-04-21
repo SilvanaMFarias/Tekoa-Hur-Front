@@ -42,6 +42,12 @@ export default function Home() {
             Listado de asistencia
           </Link>
           <Link
+            href="/importar"
+            className="rounded-xl bg-purple-600 px-4 py-3 text-center font-medium text-white transition hover:bg-purple-700"
+          >
+            Cargar Planilla de calculo
+          </Link>
+          <Link
             href="/prueba-conexion"
             className="rounded-xl bg-emerald-600 px-4 py-3 text-center font-medium text-white transition hover:bg-emerald-700"
           >
