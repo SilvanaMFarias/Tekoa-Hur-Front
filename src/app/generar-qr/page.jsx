@@ -1,5 +1,8 @@
-//import GeneradorQR from "@/components/_GeneradorQR";
+"use client";
+
 import GeneradorQR from "@/components/GeneradorQR";
+//import dynamic from "next/dynamic";
+
 
 export default function GenerarQRPage() {
   return (

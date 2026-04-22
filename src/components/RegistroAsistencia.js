@@ -15,7 +15,9 @@ import {
 export default function RegistroAsistencia({
   edificioId,
   aulaId,
-  rtoken
+  rtoken,
+  fechaInicio,
+  fechaFin
 }) {
   const [loading, setLoading] = useState(true);
   const [qrValido, setQrValido] = useState(false);
@@ -30,7 +32,7 @@ export default function RegistroAsistencia({
         setLoading(true);
 
         const response = await fetch(
-          `${process.env.NEXT_PUBLIC_BACK_URL}/api/qr/validar?edificioId=${edificioId}&aulaId=${aulaId}&rtoken=${rtoken}`
+          `${process.env.NEXT_PUBLIC_BACK_URL}/api/qr/validar?edificioId=${edificioId}&aulaId=${aulaId}&rtoken=${rtoken}&fechaInicio=${encodeURIComponent(fechaInicio)}&fechaFin=${encodeURIComponent(fechaFin)}`
         );
 
         const data = await response.json();
@@ -71,7 +73,9 @@ export default function RegistroAsistencia({
             edificioId,
             aulaId,
             rtoken,
-            dni
+            dni,
+            fechaInicio,
+            fechaFin
           })
         }
       );
@@ -95,12 +99,14 @@ export default function RegistroAsistencia({
 
   return (
     <Box
-      display="flex"
-      justifyContent="center"
-      alignItems="center"
-      minHeight="100vh"
-      bgcolor="#f5f5f5"
-      px={2}
+      sx={{
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        minHeight: "100vh",
+        bgcolor: "#f5f5f5",
+        px: 2
+      }}
     >
       <Paper elevation={4} sx={{ p: 4, maxWidth: 400, width: "100%" }}>
         <Typography variant="h5" fontWeight="bold" gutterBottom>

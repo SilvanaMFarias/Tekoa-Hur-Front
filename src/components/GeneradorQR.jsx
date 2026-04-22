@@ -1,10 +1,10 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import QRCode from "react-qr-code";
-import { AULAS, construirUrlMock, EDIFICIOS } from "@/config/mocks/mockQr";
 import { useRouter } from "next/navigation";
 import { useReactToPrint } from "react-to-print";
+import { BACK_URL, getAuthHeaders } from "@/config/api";
 
 import {
   Box,
@@ -19,6 +19,8 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  CircularProgress,
+  Alert,
 } from "@mui/material";
 
 export default function GeneradorQR() {
@@ -29,27 +31,115 @@ export default function GeneradorQR() {
   const [token, setToken] = useState("");
   const [mostrarQR, setMostrarQR] = useState(false);
   const [openPrint, setOpenPrint] = useState(false);
+  const [edificios, setEdificios] = useState([]);
+  const [aulas, setAulas] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const edificioSeleccionado = edificios.find(e => e.id === edificio);
+  const aulaSeleccionada = aulas.find(a => a.id === aula);
 
+  const [urlQR, setUrlQR] = useState("");
   const qrRef = useRef(null);
   const printRef = useRef(null);
   const router = useRouter();
 
-  const urlQR = useMemo(() => {
-    // if (!edificio || !aula) return "";
-    // return construirUrlMock(edificio, aula);
-    if (!edificio || !aula || !fechaInicio || !fechaFin || !token) return "";
+  useEffect(() => {
+    async function cargarDatos() {
+      setLoading(true);
+      setError("");
 
-    return `${construirUrlMock(edificio, aula)}&rtoken=${token}`;
-  }, [edificio, aula, fechaInicio, fechaFin, token]);
+      if (!BACK_URL) {
+        setError("La variable de entorno NEXT_PUBLIC_BACK_URL no está configurada.");
+        setLoading(false);
+        return;
+      }
 
-  const handleGenerarQR = () => {
+      try {
+        const headers = {
+          Accept: "application/json",
+        };
+        const authHeaders = getAuthHeaders();
+        if (authHeaders.Authorization) {
+          headers.Authorization = authHeaders.Authorization;
+        }
+
+        // Cargar edificios
+        const edificiosResponse = await fetch(`${BACK_URL}/api/edificios`, { headers });
+        if (edificiosResponse.ok) {
+          const edificiosData = await edificiosResponse.json();
+          if (Array.isArray(edificiosData)) {
+            setEdificios(edificiosData.map(ed => ({
+              id: ed.edificioId,
+              nombre: ed.nombre,
+            })));
+          }
+        }
+
+        // Cargar aulas
+        const aulasResponse = await fetch(`${BACK_URL}/api/aulas`, { headers });
+        if (aulasResponse.ok) {
+          const aulasData = await aulasResponse.json();
+          if (Array.isArray(aulasData)) {
+            setAulas(aulasData.map(aula => ({
+              id: aula.aulaId,
+              nombre: aula.nombreCompleto,
+              edificioId: aula.edificioId,
+            })));
+          }
+        }
+      } catch (err) {
+        console.error("Error cargando datos:", err);
+        setError("No se pudieron cargar edificios y aulas desde el backend.");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    cargarDatos();
+  }, []);
+
+  const handleGenerarQR = async () => {
     if (!edificio || !aula || !fechaInicio || !fechaFin) return;
 
-    //const token = Math.floor(100000 + Math.random() * 900000);
-    const token = 111;
-    setToken(token);
+    setLoading(true);
+    setError("");
 
-    setMostrarQR(true);
+    try {
+      const headers = {
+        "Content-Type": "application/json",
+      };
+      const authHeaders = getAuthHeaders();
+      if (authHeaders.Authorization) {
+        headers.Authorization = authHeaders.Authorization;
+      }
+
+      const response = await fetch(`${BACK_URL}/api/qr/generar`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          edificioId: edificio,
+          aulaId: aula,
+          fechaInicio,
+          fechaFin,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        setError(errorData.message || "Error al generar el QR.");
+        return;
+      }
+
+      const data = await response.json();
+      setUrlQR(data.url);
+      setToken(data.token || ""); // Si el backend devuelve token
+      setMostrarQR(true);
+    } catch (err) {
+      console.error("Error generando QR:", err);
+      setError("Error al conectar con el backend para generar el QR.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleOpenPrint = () => {
@@ -133,15 +223,16 @@ export default function GeneradorQR() {
               onChange={(e) => {
                 setEdificio(e.target.value);
                 setMostrarQR(false);
+                setUrlQR("");
               }}
             >
               <MenuItem value="">
                 <em>Seleccionar edificio</em>
               </MenuItem>
 
-              {EDIFICIOS.map((item) => (
-                <MenuItem key={item} value={item}>
-                  {item}
+              {edificios.map((item) => (
+                <MenuItem key={item.id} value={item.id}>
+                  {item.nombre}
                 </MenuItem>
               ))}
             </Select>
@@ -158,15 +249,16 @@ export default function GeneradorQR() {
               onChange={(e) => {
                 setAula(e.target.value);
                 setMostrarQR(false);
+                setUrlQR("");
               }}
             >
               <MenuItem value="">
                 <em>Seleccionar aula</em>
               </MenuItem>
 
-              {AULAS.map((item) => (
-                <MenuItem key={item} value={item}>
-                  {item}
+              {aulas.map((item) => (
+                <MenuItem key={item.id} value={item.id}>
+                  {item.nombre}
                 </MenuItem>
               ))}
             </Select>
@@ -185,6 +277,7 @@ export default function GeneradorQR() {
               onChange={(e) => {
                 setFechaInicio(e.target.value);
                 setMostrarQR(false);
+                setUrlQR("");
               }}
               style={{
                 padding: "10px",
@@ -207,6 +300,7 @@ export default function GeneradorQR() {
               onChange={(e) => {
                 setFechaFin(e.target.value);
                 setMostrarQR(false);
+                setUrlQR("");
               }}
               style={{
                 padding: "10px",
@@ -256,10 +350,10 @@ export default function GeneradorQR() {
 
             <Box sx={{ mt: 3, textAlign: "center" }}>
               <Typography variant="body2">
-                Edificio: <strong>{edificio}</strong>
+                Edificio: <strong>{edificioSeleccionado?.nombre}</strong>
               </Typography>
               <Typography variant="body2">
-                Aula: <strong>{aula}</strong>
+                Aula: <strong>{aulaSeleccionada?.nombre}</strong>
               </Typography>
             </Box>
 
