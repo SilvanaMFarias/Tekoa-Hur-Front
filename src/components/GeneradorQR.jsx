@@ -1,8 +1,7 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, useEffect } from "react";
 import QRCode from "react-qr-code";
-import { AULAS, construirUrlMock, EDIFICIOS } from "@/config/mocks/mockQr";
 import { useRouter } from "next/navigation";
 import { useReactToPrint } from "react-to-print";
 
@@ -19,7 +18,9 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  CircularProgress,
 } from "@mui/material";
+import { BACK_URL, getAuthHeaders } from "@/config/api";
 
 export default function GeneradorQR() {
   const [edificio, setEdificio] = useState("");
@@ -30,39 +31,122 @@ export default function GeneradorQR() {
   const [mostrarQR, setMostrarQR] = useState(false);
   const [openPrint, setOpenPrint] = useState(false);
 
+  const [edificios, setEdificios] = useState([]);
+  const [aulas, setAulas] = useState([]);
+  const [aulasCache, setAulasCache] = useState({});
+
+  const [loadingEdificios, setLoadingEdificios] = useState(true);
+  const [loadingAulas, setLoadingAulas] = useState(false);
+
   const qrRef = useRef(null);
   const printRef = useRef(null);
   const router = useRouter();
 
+  // 🔹 EDIFICIOS
+  useEffect(() => {
+    const fetchEdificios = async () => {
+      try {
+        const response = await fetch(`${BACK_URL}/api/edificios`, {
+          headers: getAuthHeaders(),
+        });
+        if (response.ok) {
+          const data = await response.json();
+
+          const normalizados = data.map((e) => ({
+            ...e,
+            edificioId: String(e.edificioId),
+          }));
+
+          setEdificios(normalizados);
+        }
+      } catch (error) {
+        console.error("Error fetching edificios:", error);
+      } finally {
+        setLoadingEdificios(false);
+      }
+    };
+
+    fetchEdificios();
+  }, []);
+
+  // 🔹 AULAS
+  useEffect(() => {
+    if (!edificio) {
+      setAulas([]);
+      return;
+    }
+
+    if (aulasCache[edificio]) {
+      setAulas(aulasCache[edificio]);
+      return;
+    }
+
+    const fetchAulas = async () => {
+      try {
+        setLoadingAulas(true);
+
+        const response = await fetch(
+          `${BACK_URL}/api/aulas?edificioId=${edificio}`,
+          { headers: getAuthHeaders() }
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+
+          const normalizados = data.map((a) => ({
+            ...a,
+            aulaId: String(a.aulaId),
+          }));
+
+          setAulas(normalizados);
+
+          setAulasCache((prev) => ({
+            ...prev,
+            [edificio]: normalizados,
+          }));
+        }
+      } catch (error) {
+        console.error("Error fetching aulas:", error);
+      } finally {
+        setLoadingAulas(false);
+      }
+    };
+
+    fetchAulas();
+  }, [edificio]);
+
+  // 🔹 Consistencia
+  useEffect(() => {
+    if (aula && !aulas.find((a) => a.aulaId === aula)) {
+      setAula("");
+    }
+  }, [aulas, aula]);
+
+  const selectedEdificio = edificios.find(
+    (e) => e.edificioId === edificio
+  );
+  const selectedAula = aulas.find((a) => a.aulaId === aula);
+
+  // ✅ URL REAL + TOKEN MOCK
   const urlQR = useMemo(() => {
-    // if (!edificio || !aula) return "";
-    // return construirUrlMock(edificio, aula);
     if (!edificio || !aula || !fechaInicio || !fechaFin || !token) return "";
 
-    return `${construirUrlMock(edificio, aula)}&rtoken=${token}`;
+    return `${process.env.NEXT_PUBLIC_FRONT_URL}/registrar-asistencia?edificioId=${edificio}&aulaId=${aula}&fechaInicio=${fechaInicio}&fechaFin=${fechaFin}&rtoken=${token}`;
   }, [edificio, aula, fechaInicio, fechaFin, token]);
+
 
   const handleGenerarQR = () => {
     if (!edificio || !aula || !fechaInicio || !fechaFin) return;
 
-    //const token = Math.floor(100000 + Math.random() * 900000);
-    const token = 111;
-    setToken(token);
-
+    setToken(111); // mock
     setMostrarQR(true);
-  };
-
-  const handleOpenPrint = () => {
-    setOpenPrint(true);
-  };
-
-  const handleClosePrint = () => {
-    setOpenPrint(false);
   };
 
   const handleImprimirQR = useReactToPrint({
     contentRef: printRef,
-    documentTitle: `qr-${edificio}-aula-${aula}`,
+    documentTitle: `qr-${
+      selectedEdificio?.nombre?.toLowerCase().replace(/\s+/g, "-") || edificio
+    }-aula-${selectedAula?.nombreCompleto || aula}`,
   });
 
   const handleDescargarQR = async () => {
@@ -92,7 +176,9 @@ export default function GeneradorQR() {
       const pngUrl = canvas.toDataURL("image/png");
       const link = document.createElement("a");
       link.href = pngUrl;
-      link.download = `qr-${edificio.toLowerCase().replace(/\s+/g, "-")}-aula-${aula}.png`;
+      link.download = `qr-${
+        selectedEdificio?.nombre?.toLowerCase().replace(/\s+/g, "-") || edificio
+      }-aula-${selectedAula?.nombreCompleto || aula}.png`;
       link.click();
 
       URL.revokeObjectURL(url);
@@ -103,299 +189,176 @@ export default function GeneradorQR() {
 
   return (
     <>
-      <Paper
-        elevation={3}
-        sx={{
-          width: "100%",
-          maxWidth: 600,
-          p: 4,
-          borderRadius: 4,
-          mx: "auto",
-        }}
-      >
-        <Typography
-          variant="h4"
-          component="h1"
-          align="center"
-          fontWeight="bold"
-          gutterBottom
-        >
+      <Paper suppressHydrationWarning elevation={3} sx={{ width: "100%", maxWidth: 600, p: 4, borderRadius: 4, mx: "auto" }}>
+        <Typography variant="h4" align="center" fontWeight="bold" gutterBottom>
           Generar QR
         </Typography>
 
+        {/* EDIFICIO */}
         <Box sx={{ mb: 3 }}>
           <FormControl fullWidth>
-            <InputLabel id="edificio-label">Edificio</InputLabel>
+            <InputLabel>Edificio</InputLabel>
             <Select
-              labelId="edificio-label"
               value={edificio}
-              label="edificio"
+              label="Edificio"
               onChange={(e) => {
-                setEdificio(e.target.value);
+                setEdificio(String(e.target.value));
+                setAula("");
                 setMostrarQR(false);
               }}
+              disabled={loadingEdificios}
             >
               <MenuItem value="">
                 <em>Seleccionar edificio</em>
               </MenuItem>
 
-              {EDIFICIOS.map((item) => (
-                <MenuItem key={item} value={item}>
-                  {item}
+              {loadingEdificios ? (
+                <MenuItem disabled>
+                  <CircularProgress size={20} />
                 </MenuItem>
-              ))}
+              ) : (
+                edificios.map((item) => (
+                  <MenuItem key={item.edificioId} value={item.edificioId}>
+                    {item.nombre}
+                  </MenuItem>
+                ))
+              )}
             </Select>
           </FormControl>
         </Box>
 
+        {/* AULA */}
         <Box sx={{ mb: 3 }}>
           <FormControl fullWidth>
-            <InputLabel id="aula-label">Aula</InputLabel>
+            <InputLabel>Aula</InputLabel>
             <Select
-              labelId="aula-label"
               value={aula}
               label="Aula"
               onChange={(e) => {
-                setAula(e.target.value);
+                setAula(String(e.target.value));
                 setMostrarQR(false);
               }}
+              disabled={!edificio || loadingAulas}
             >
-              <MenuItem value="">
-                <em>Seleccionar aula</em>
-              </MenuItem>
-
-              {AULAS.map((item) => (
-                <MenuItem key={item} value={item}>
-                  {item}
+              {!edificio ? (
+                <MenuItem disabled>
+                  <em>Primero seleccioná un edificio</em>
                 </MenuItem>
-              ))}
+              ) : loadingAulas ? (
+                <MenuItem disabled>
+                  <CircularProgress size={20} />
+                </MenuItem>
+              ) : (
+                aulas.map((item) => (
+                  <MenuItem key={item.aulaId} value={item.aulaId}>
+                    {item.nombreCompleto}
+                  </MenuItem>
+                ))
+              )}
             </Select>
           </FormControl>
         </Box>
 
+        {/* FECHAS */}
         <Box sx={{ mb: 3 }}>
-          <FormControl fullWidth>
-            <Typography variant="body2" sx={{ mb: 1 }}>
-              Fecha inicio
-            </Typography>
-
-            <input
-              type="datetime-local"
-              value={fechaInicio}
-              onChange={(e) => {
-                setFechaInicio(e.target.value);
-                setMostrarQR(false);
-              }}
-              style={{
-                padding: "10px",
-                borderRadius: "8px",
-                border: "1px solid #ccc",
-              }}
-            />
-          </FormControl>
+          <Typography variant="body2">Fecha inicio</Typography>
+          <input
+            type="datetime-local"
+            value={fechaInicio}
+            onChange={(e) => setFechaInicio(e.target.value)}
+          />
         </Box>
 
         <Box sx={{ mb: 3 }}>
-          <FormControl fullWidth>
-            <Typography variant="body2" sx={{ mb: 1 }}>
-              Fecha fin
-            </Typography>
-
-            <input
-              type="datetime-local"
-              value={fechaFin}
-              onChange={(e) => {
-                setFechaFin(e.target.value);
-                setMostrarQR(false);
-              }}
-              style={{
-                padding: "10px",
-                borderRadius: "8px",
-                border: "1px solid #ccc",
-              }}
-            />
-          </FormControl>
+          <Typography variant="body2">Fecha fin</Typography>
+          <input
+            type="datetime-local"
+            value={fechaFin}
+            onChange={(e) => setFechaFin(e.target.value)}
+          />
         </Box>
 
-        <Button
-          variant="contained"
-          fullWidth
-          onClick={handleGenerarQR}
-          disabled={!edificio || !aula || !fechaInicio || !fechaFin}
-          sx={{
-            mt: 2,
-            py: 1.5,
-            borderRadius: 3,
-            textTransform: "none",
-            fontWeight: 500,
-          }}
-        >
+        <Button fullWidth variant="contained" onClick={handleGenerarQR}>
           Generar QR
         </Button>
 
+        {/* QR */}
         {mostrarQR && urlQR && (
-          <Box
-            sx={{
-              mt: 4,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-            }}
-          >
-            <Paper
-              ref={qrRef}
-              elevation={2}
-              sx={{
-                p: 2,
-                borderRadius: 3,
-                backgroundColor: "white",
-              }}
-            >
+          <Box sx={{ mt: 4, display: "flex", flexDirection: "column", alignItems: "center" }}>
+            <Paper ref={qrRef} elevation={2} sx={{ p: 2, borderRadius: 3, backgroundColor: "white" }}>
               <QRCode value={urlQR} size={220} />
             </Paper>
 
             <Box sx={{ mt: 3, textAlign: "center" }}>
               <Typography variant="body2">
-                Edificio: <strong>{edificio}</strong>
+                Edificio: <strong>{selectedEdificio?.nombre}</strong>
               </Typography>
               <Typography variant="body2">
-                Aula: <strong>{aula}</strong>
+                Aula: <strong>{selectedAula?.nombreCompleto}</strong>
               </Typography>
             </Box>
 
-            <Typography
-              variant="caption"
-              sx={{
-                mt: 2,
-                textAlign: "center",
-                wordBreak: "break-all",
-                display: "block",
-              }}
-            >
+            <Typography variant="caption" sx={{ mt: 2, wordBreak: "break-all" }}>
               {urlQR}
             </Typography>
 
-            <Box
-              sx={{
-                mt: 3,
-                width: "100%",
-                display: "flex",
-                flexDirection: { xs: "column", sm: "row" },
-                gap: 2,
-              }}
-            >
-              <Button
-                variant="contained"
-                color="success"
-                fullWidth
-                onClick={handleDescargarQR}
-                sx={{
-                  py: 1.5,
-                  borderRadius: 3,
-                  textTransform: "none",
-                  fontWeight: 500,
-                }}
-              >
+            <Box sx={{ mt: 3, width: "100%", display: "flex", gap: 2 }}>
+              <Button variant="contained" color="success" fullWidth onClick={handleDescargarQR}>
                 Descargar QR
               </Button>
-
-              <Button
-                variant="contained"
-                color="inherit"
-                fullWidth
-                onClick={handleOpenPrint}
-                sx={{
-                  py: 1.5,
-                  borderRadius: 3,
-                  textTransform: "none",
-                  fontWeight: 500,
-                }}
-              >
+              <Button variant="contained" color="inherit" fullWidth onClick={() => setOpenPrint(true)}>
                 Imprimir QR
               </Button>
             </Box>
           </Box>
         )}
+
         <Button
           variant="outlined"
           color="error"
           fullWidth
           onClick={() => router.push("/")}
-          sx={{
-            mt: 3,
-            py: 1.5,
-            borderRadius: 3,
-            textTransform: "none",
-            fontWeight: 500,
-          }}
+          sx={{ mt: 3 }}
         >
           Cancelar
         </Button>
       </Paper>
 
-      <Dialog
-        open={openPrint}
-        onClose={handleClosePrint}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>Vista previa de impresión</DialogTitle>
+      <Dialog open={openPrint} onClose={() => setOpenPrint(false)} maxWidth="sm" fullWidth>
+  <DialogTitle sx={{ textAlign: "center" }}>
+    Vista previa de impresión
+  </DialogTitle>
 
-        <DialogContent>
-          <Box
-            ref={printRef}
-            sx={{
-              p: 4,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              textAlign: "center",
-              backgroundColor: "white",
-            }}
-          >
-            <Typography variant="h5" fontWeight="bold" gutterBottom>
-              QR de aula
-            </Typography>
+  <DialogContent>
+    <Box
+      ref={printRef}
+      sx={{
+        p: 4,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        textAlign: "center",
+      }}
+    >
+      <Typography variant="h5">QR de aula</Typography>
 
-            <Typography variant="body1" sx={{ mb: 0.5 }}>
-              Edificio: {edificio}
-            </Typography>
+      <Typography>Edificio: {selectedEdificio?.nombre}</Typography>
+      <Typography>Aula: {selectedAula?.nombreCompleto}</Typography>
 
-            <Typography variant="body1" sx={{ mb: 3 }}>
-              Aula: {aula}
-            </Typography>
+      <Box sx={{ mt: 2, display: "flex", justifyContent: "center" }}>
+        <QRCode value={urlQR} size={220} />
+      </Box>
+    </Box>
+  </DialogContent>
 
-            <Box
-              sx={{
-                p: 2,
-                border: "1px solid #ddd",
-                borderRadius: 2,
-                backgroundColor: "white",
-              }}
-            >
-              <QRCode value={urlQR} size={220} />
-            </Box>
-
-            <Typography variant="body2" sx={{ mt: 3 }}>
-              Escaneá este código para registrar asistencia
-            </Typography>
-          </Box>
-        </DialogContent>
-
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={handleClosePrint} sx={{ textTransform: "none" }}>
-            Cancelar
-          </Button>
-
-          <Button
-            variant="contained"
-            onClick={handleImprimirQR}
-            sx={{ textTransform: "none" }}
-          >
-            Imprimir
-          </Button>
-        </DialogActions>
-      </Dialog>
+  <DialogActions sx={{ justifyContent: "center" }}>
+    <Button onClick={() => setOpenPrint(false)}>Cancelar</Button>
+    <Button variant="contained" onClick={handleImprimirQR}>
+      Imprimir
+    </Button>
+  </DialogActions>
+</Dialog>
     </>
   );
 }
