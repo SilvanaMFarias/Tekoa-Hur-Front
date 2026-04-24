@@ -29,9 +29,9 @@ export default function RegistroAsistencia({
       try {
         setLoading(true);
 
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_BACK_URL}/api/qr/validar?edificioId=${edificioId}&aulaId=${aulaId}&rtoken=${rtoken}`
-        );
+//        const response = await fetch(
+//          `${process.env.NEXT_PUBLIC_BACK_URL}/api/qr/validar?edificioId=${edificioId}&aulaId=${aulaId}&rtoken=${rtoken}`
+//        );
         const url = `${process.env.NEXT_PUBLIC_BACK_URL}/api/qr/validar?edificioId=${edificioId}&aulaId=${aulaId}&rtoken=${rtoken}`;
         console.log("Validando QR en:", url);
 
