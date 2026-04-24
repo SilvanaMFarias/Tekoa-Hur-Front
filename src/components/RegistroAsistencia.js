@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
 import {
   Box,
   Paper,
@@ -15,7 +14,8 @@ import {
 export default function RegistroAsistencia({
   edificioId,
   aulaId,
-  rtoken
+  rtoken,
+  comisionId // 🔥 IMPORTANTE
 }) {
   const [loading, setLoading] = useState(true);
   const [qrValido, setQrValido] = useState(false);
@@ -29,16 +29,9 @@ export default function RegistroAsistencia({
       try {
         setLoading(true);
 
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_BACK_URL}/api/qr/validar?edificioId=${edificioId}&aulaId=${aulaId}&rtoken=${rtoken}`
-        );
         const url = `${process.env.NEXT_PUBLIC_BACK_URL}/api/qr/validar?edificioId=${edificioId}&aulaId=${aulaId}&rtoken=${rtoken}`;
-        console.log("Validando QR en:", url);
 
         const response = await fetch(url);
-
-        console.log("Status de respuesta:", response.status);
-        
         const data = await response.json();
 
         if (!response.ok) {
@@ -49,6 +42,7 @@ export default function RegistroAsistencia({
 
         setQrValido(true);
         setMensaje("QR válido. Podés registrar tu asistencia.");
+
       } catch (error) {
         console.error(error);
         setQrValido(false);
@@ -66,6 +60,10 @@ export default function RegistroAsistencia({
       setRegistrando(true);
       setMensaje("");
 
+      const now = new Date();
+      const fecha = now.toISOString().split("T")[0];
+      const horaRegistro = now.toTimeString().slice(0, 5);
+
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_BACK_URL}/api/asistencias/registrar-desde-qr`,
         {
@@ -74,10 +72,13 @@ export default function RegistroAsistencia({
             "Content-Type": "application/json"
           },
           body: JSON.stringify({
-            edificioId,
+            tipoUsuario: "ESTUDIANTE",
+            usuarioId: dni,
+            comisionId,
+            fecha,
+            horaRegistro,
             aulaId,
-            rtoken,
-            dni
+            rtoken
           })
         }
       );
@@ -91,6 +92,7 @@ export default function RegistroAsistencia({
 
       setOk("Asistencia registrada correctamente");
       setDni("");
+
     } catch (error) {
       console.error(error);
       setMensaje("Error al registrar asistencia.");
@@ -100,24 +102,13 @@ export default function RegistroAsistencia({
   };
 
   return (
-    <Box
-      display="flex"
-      justifyContent="center"
-      alignItems="center"
-      minHeight="100vh"
-      bgcolor="#f5f5f5"
-      px={2}
-    >
-      <Paper elevation={4} sx={{ p: 4, maxWidth: 400, width: "100%" }}>
-        <Typography variant="h5" fontWeight="bold" gutterBottom>
+    <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh">
+      <Paper sx={{ p: 4, maxWidth: 400, width: "100%" }}>
+        <Typography variant="h5" fontWeight="bold">
           Registro de asistencia
         </Typography>
 
-        {loading && (
-          <Box display="flex" justifyContent="center" py={2}>
-            <CircularProgress />
-          </Box>
-        )}
+        {loading && <CircularProgress />}
 
         {!loading && mensaje && !qrValido && (
           <Alert severity="error">{mensaje}</Alert>
@@ -125,9 +116,7 @@ export default function RegistroAsistencia({
 
         {!loading && qrValido && (
           <>
-            <Alert severity="success" sx={{ mb: 2 }}>
-              {mensaje}
-            </Alert>
+            <Alert severity="success">{mensaje}</Alert>
 
             <TextField
               fullWidth
@@ -140,20 +129,15 @@ export default function RegistroAsistencia({
             <Button
               fullWidth
               variant="contained"
-              color="primary"
               disabled={!dni || registrando}
               onClick={registrarAsistencia}
             >
-              {registrando ? "Registrando..." : "Registrar asistencia"}
+              {registrando ? "Registrando..." : "Registrar"}
             </Button>
           </>
         )}
 
-        {ok && (
-          <Alert severity="success" sx={{ mt: 2 }}>
-            {ok}
-          </Alert>
-        )}
+        {ok && <Alert severity="success">{ok}</Alert>}
       </Paper>
     </Box>
   );

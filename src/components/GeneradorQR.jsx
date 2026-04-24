@@ -127,20 +127,46 @@ export default function GeneradorQR() {
   );
   const selectedAula = aulas.find((a) => a.aulaId === aula);
 
-  // ✅ URL REAL + TOKEN MOCK
+  // URL REAL, la fecha ahora la decide el backend 
   const urlQR = useMemo(() => {
-    if (!edificio || !aula || !fechaInicio || !fechaFin || !token) return "";
+  if (!edificio || !aula || !token) return "";
 
-    return `${process.env.NEXT_PUBLIC_FRONT_URL}/registrar-asistencia?edificioId=${edificio}&aulaId=${aula}&fechaInicio=${fechaInicio}&fechaFin=${fechaFin}&rtoken=${token}`;
-  }, [edificio, aula, fechaInicio, fechaFin, token]);
+  return `${process.env.NEXT_PUBLIC_FRONT_URL}/registrar-asistencia?edificioId=${edificio}&aulaId=${aula}&rtoken=${token}`;
+}, [edificio, aula, token]);
 
 
-  const handleGenerarQR = () => {
-    if (!edificio || !aula || !fechaInicio || !fechaFin) return;
+  const handleGenerarQR = async () => {
+  if (!edificio || !aula) return;
 
-    setToken(111); // mock
+  try {
+    setLoadingAulas(true); // opcional: podés usar otro loading si querés
+
+    const response = await fetch(`${BACK_URL}/api/qr/generar`, {
+      method: "POST",
+      headers: {
+        ...getAuthHeaders(),
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ aulaId: aula })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error(data.message);
+      return;
+    }
+
+    // 🔥 ESTE ES EL CORE
+    setToken(data.rtoken);
     setMostrarQR(true);
-  };
+
+  } catch (error) {
+    console.error("Error generando QR:", error);
+  } finally {
+    setLoadingAulas(false);
+  }
+};
 
   const handleImprimirQR = useReactToPrint({
     contentRef: printRef,
