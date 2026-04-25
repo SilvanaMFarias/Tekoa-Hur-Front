@@ -131,8 +131,8 @@ export default function GeneradorQR() {
   const urlQR = useMemo(() => {
   if (!edificio || !aula || !token) return "";
 
-  return `${process.env.NEXT_PUBLIC_FRONT_URL}/registrar-asistencia?edificioId=${edificio}&aulaId=${aula}&rtoken=${token}`;
-}, [edificio, aula, token]);
+  return `${process.env.NEXT_PUBLIC_FRONT_URL}/registrar-asistencia?edificioId=${edificio}&aulaId=${aula}&rtoken=${token}&fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`;
+}, [edificio, aula, token, fechaInicio, fechaFin]);
 
 
   const handleGenerarQR = async () => {
@@ -157,7 +157,6 @@ export default function GeneradorQR() {
       return;
     }
 
-    // 🔥 ESTE ES EL CORE
     setToken(data.rtoken);
     setMostrarQR(true);
 

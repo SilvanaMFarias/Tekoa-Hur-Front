@@ -15,7 +15,8 @@ export default function RegistroAsistencia({
   edificioId,
   aulaId,
   rtoken,
-  comisionId // 🔥 IMPORTANTE
+  fechaInicio,
+  fechaFin
 }) {
   const [loading, setLoading] = useState(true);
   const [qrValido, setQrValido] = useState(false);
@@ -24,6 +25,7 @@ export default function RegistroAsistencia({
   const [registrando, setRegistrando] = useState(false);
   const [ok, setOk] = useState("");
 
+  // 🔹 Validar QR al cargar
   useEffect(() => {
     async function validarQr() {
       try {
@@ -42,7 +44,6 @@ export default function RegistroAsistencia({
 
         setQrValido(true);
         setMensaje("QR válido. Podés registrar tu asistencia.");
-
       } catch (error) {
         console.error(error);
         setQrValido(false);
@@ -55,14 +56,12 @@ export default function RegistroAsistencia({
     validarQr();
   }, [edificioId, aulaId, rtoken]);
 
+  // 🔹 Registrar asistencia
   const registrarAsistencia = async () => {
     try {
       setRegistrando(true);
       setMensaje("");
-
-      const now = new Date();
-      const fecha = now.toISOString().split("T")[0];
-      const horaRegistro = now.toTimeString().slice(0, 5);
+      setOk("");
 
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_BACK_URL}/api/asistencias/registrar-desde-qr`,
@@ -74,11 +73,10 @@ export default function RegistroAsistencia({
           body: JSON.stringify({
             tipoUsuario: "ESTUDIANTE",
             usuarioId: dni,
-            comisionId,
-            fecha,
-            horaRegistro,
             aulaId,
-            rtoken
+            rtoken,
+            fechaInicio,
+            fechaFin
           })
         }
       );
@@ -92,7 +90,6 @@ export default function RegistroAsistencia({
 
       setOk("Asistencia registrada correctamente");
       setDni("");
-
     } catch (error) {
       console.error(error);
       setMensaje("Error al registrar asistencia.");
@@ -102,13 +99,24 @@ export default function RegistroAsistencia({
   };
 
   return (
-    <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh">
-      <Paper sx={{ p: 4, maxWidth: 400, width: "100%" }}>
-        <Typography variant="h5" fontWeight="bold">
+    <Box
+      display="flex"
+      justifyContent="center"
+      alignItems="center"
+      minHeight="100vh"
+      bgcolor="#f5f5f5"
+      px={2}
+    >
+      <Paper elevation={4} sx={{ p: 4, maxWidth: 400, width: "100%" }}>
+        <Typography variant="h5" fontWeight="bold" gutterBottom>
           Registro de asistencia
         </Typography>
 
-        {loading && <CircularProgress />}
+        {loading && (
+          <Box display="flex" justifyContent="center" py={2}>
+            <CircularProgress />
+          </Box>
+        )}
 
         {!loading && mensaje && !qrValido && (
           <Alert severity="error">{mensaje}</Alert>
@@ -116,7 +124,9 @@ export default function RegistroAsistencia({
 
         {!loading && qrValido && (
           <>
-            <Alert severity="success">{mensaje}</Alert>
+            <Alert severity="success" sx={{ mb: 2 }}>
+              {mensaje}
+            </Alert>
 
             <TextField
               fullWidth
@@ -129,15 +139,20 @@ export default function RegistroAsistencia({
             <Button
               fullWidth
               variant="contained"
+              color="primary"
               disabled={!dni || registrando}
               onClick={registrarAsistencia}
             >
-              {registrando ? "Registrando..." : "Registrar"}
+              {registrando ? "Registrando..." : "Registrar asistencia"}
             </Button>
           </>
         )}
 
-        {ok && <Alert severity="success">{ok}</Alert>}
+        {ok && (
+          <Alert severity="success" sx={{ mt: 2 }}>
+            {ok}
+          </Alert>
+        )}
       </Paper>
     </Box>
   );
