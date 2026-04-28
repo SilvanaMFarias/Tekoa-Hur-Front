@@ -10,12 +10,17 @@ function PageContent() {
   const edificioId = searchParams.get("edificioId");
   const aulaId = searchParams.get("aulaId");
   const rtoken = searchParams.get("rtoken");
+  const fechaInicio = searchParams.get("fechaInicio");
+  const fechaFin = searchParams.get("fechaFin");
+
 
   return (
     <RegistroAsistencia
       edificioId={edificioId}
       aulaId={aulaId}
       rtoken={rtoken}
+      fechaInicio={fechaInicio}
+      fechaFin={fechaFin}
     />
   );
 }

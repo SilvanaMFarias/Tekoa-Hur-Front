@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
 import {
   Box,
   Paper,
@@ -15,7 +14,9 @@ import {
 export default function RegistroAsistencia({
   edificioId,
   aulaId,
-  rtoken
+  rtoken,
+  fechaInicio,
+  fechaFin
 }) {
   const [loading, setLoading] = useState(true);
   const [qrValido, setQrValido] = useState(false);
@@ -24,21 +25,15 @@ export default function RegistroAsistencia({
   const [registrando, setRegistrando] = useState(false);
   const [ok, setOk] = useState("");
 
+  // 🔹 Validar QR al cargar
   useEffect(() => {
     async function validarQr() {
       try {
         setLoading(true);
 
-//        const response = await fetch(
-//          `${process.env.NEXT_PUBLIC_BACK_URL}/api/qr/validar?edificioId=${edificioId}&aulaId=${aulaId}&rtoken=${rtoken}`
-//        );
         const url = `${process.env.NEXT_PUBLIC_BACK_URL}/api/qr/validar?edificioId=${edificioId}&aulaId=${aulaId}&rtoken=${rtoken}`;
-        console.log("Validando QR en:", url);
 
         const response = await fetch(url);
-
-        console.log("Status de respuesta:", response.status);
-        
         const data = await response.json();
 
         if (!response.ok) {
@@ -61,10 +56,12 @@ export default function RegistroAsistencia({
     validarQr();
   }, [edificioId, aulaId, rtoken]);
 
+  // 🔹 Registrar asistencia
   const registrarAsistencia = async () => {
     try {
       setRegistrando(true);
       setMensaje("");
+      setOk("");
 
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_BACK_URL}/api/asistencias/registrar-desde-qr`,
@@ -74,10 +71,12 @@ export default function RegistroAsistencia({
             "Content-Type": "application/json"
           },
           body: JSON.stringify({
-            edificioId,
+            tipoUsuario: "ESTUDIANTE",
+            usuarioId: dni,
             aulaId,
             rtoken,
-            dni
+            fechaInicio,
+            fechaFin
           })
         }
       );
