@@ -1,17 +1,7 @@
 "use client";
 
-// ============================================================
-// components/GeneradorQR.jsx
-// ============================================================
-// FIXES:
-//  ✅ Estado "generando" separado del "loadingAulas" (antes el botón
-//     se trababa cuando cargaba aulas)
-//  ✅ Alert de error visible al usuario cuando falla algo
-//  ✅ URL del QR con estructura mínima (token + aulaId + edificioId)
-// ============================================================
-
 import { useMemo, useRef, useState, useEffect } from "react";
-import QRCode        from "react-qr-code";
+import QRCode from "react-qr-code";
 import { useRouter } from "next/navigation";
 import { useReactToPrint } from "react-to-print";
 import {
@@ -32,30 +22,25 @@ export default function GeneradorQR() {
   const [aulasCache,       setAulasCache]       = useState({});
   const [loadingEdificios, setLoadingEdificios] = useState(true);
   const [loadingAulas,     setLoadingAulas]     = useState(false);
-  const [generando,        setGenerando]        = useState(false); // ✅ estado propio
+  const [generando,        setGenerando]        = useState(false);
   const [error,            setError]            = useState("");
 
   const qrRef    = useRef(null);
   const printRef = useRef(null);
   const router   = useRouter();
 
-  // Cargar edificios al montar
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(`${BACK_URL}/api/edificios`, { headers: getAuthHeaders() });
+        const res  = await fetch(`${BACK_URL}/api/edificios`, { headers: getAuthHeaders() });
         if (!res.ok) throw new Error("Error cargando edificios");
         const data = await res.json();
         setEdificios(data.map(e => ({ ...e, edificioId: String(e.edificioId) })));
-      } catch (e) {
-        setError("No se pudieron cargar los edificios.");
-      } finally {
-        setLoadingEdificios(false);
-      }
+      } catch { setError("No se pudieron cargar los edificios."); }
+      finally   { setLoadingEdificios(false); }
     })();
   }, []);
 
-  // Cargar aulas al elegir edificio
   useEffect(() => {
     if (!edificio) { setAulas([]); return; }
     if (aulasCache[edificio]) { setAulas(aulasCache[edificio]); return; }
@@ -63,16 +48,13 @@ export default function GeneradorQR() {
       try {
         setLoadingAulas(true);
         const res  = await fetch(`${BACK_URL}/api/aulas?edificioId=${edificio}`, { headers: getAuthHeaders() });
-        if (!res.ok) throw new Error("Error cargando aulas");
+        if (!res.ok) throw new Error();
         const data = await res.json();
         const norm = data.map(a => ({ ...a, aulaId: String(a.aulaId) }));
         setAulas(norm);
         setAulasCache(prev => ({ ...prev, [edificio]: norm }));
-      } catch (e) {
-        setError("No se pudieron cargar las aulas.");
-      } finally {
-        setLoadingAulas(false);
-      }
+      } catch { setError("No se pudieron cargar las aulas."); }
+      finally   { setLoadingAulas(false); }
     })();
   }, [edificio]);
 
@@ -83,7 +65,6 @@ export default function GeneradorQR() {
   const selectedEdificio = edificios.find(e => e.edificioId === edificio);
   const selectedAula     = aulas.find(a => a.aulaId === aula);
 
-  // URL que va dentro del QR
   const urlQR = useMemo(() => {
     if (!token) return "";
     return `${process.env.NEXT_PUBLIC_FRONT_URL}/registrar-asistencia?rtoken=${token}&aulaId=${aula}&edificioId=${edificio}`;
@@ -91,8 +72,7 @@ export default function GeneradorQR() {
 
   const handleGenerarQR = async () => {
     if (!edificio || !aula) return;
-    setError("");
-    setGenerando(true);
+    setError(""); setGenerando(true);
     try {
       const res  = await fetch(`${BACK_URL}/api/qr/generar`, {
         method: "POST",
@@ -103,11 +83,8 @@ export default function GeneradorQR() {
       if (!res.ok) { setError(data.message || "Error al generar el QR"); return; }
       setToken(data.rtoken);
       setMostrarQR(true);
-    } catch {
-      setError("No se pudo conectar con el servidor.");
-    } finally {
-      setGenerando(false);
-    }
+    } catch { setError("No se pudo conectar con el servidor."); }
+    finally   { setGenerando(false); }
   };
 
   const handleImprimirQR = useReactToPrint({
@@ -115,24 +92,41 @@ export default function GeneradorQR() {
     documentTitle: `qr-${selectedAula?.nombreCompleto || aula}`,
   });
 
+  // ✅ FIX: descarga en alta resolución (1200×1200) para que sea legible
   const handleDescargarQR = async () => {
     const svg = qrRef.current?.querySelector("svg");
     if (!svg) return;
-    const blob = new Blob([new XMLSerializer().serializeToString(svg)], { type: "image/svg+xml;charset=utf-8" });
+
+    // Tamaño del canvas — 1200px da buena resolución para lectores de imagen
+    const TAM = 1200;
+    const MARGEN = 60; // margen blanco alrededor del QR
+
+    const svgString = new XMLSerializer().serializeToString(svg);
+    const blob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
     const url  = URL.createObjectURL(blob);
     const img  = new Image();
+
     img.onload = () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = canvas.height = 300;
-      const ctx = canvas.getContext("2d");
-      ctx.fillStyle = "white"; ctx.fillRect(0,0,300,300);
-      ctx.drawImage(img, 0, 0, 300, 300);
-      const a = document.createElement("a");
-      a.href = canvas.toDataURL("image/png");
-      a.download = `qr-${selectedAula?.nombreCompleto || aula}.png`;
-      a.click();
+      const canvas  = document.createElement("canvas");
+      canvas.width  = TAM;
+      canvas.height = TAM;
+      const ctx     = canvas.getContext("2d");
+
+      // Fondo blanco
+      ctx.fillStyle = "white";
+      ctx.fillRect(0, 0, TAM, TAM);
+
+      // Dibujar QR centrado con margen
+      ctx.drawImage(img, MARGEN, MARGEN, TAM - MARGEN * 2, TAM - MARGEN * 2);
+
+      // Descargar como PNG
+      const link      = document.createElement("a");
+      link.href       = canvas.toDataURL("image/png", 1.0); // calidad máxima
+      link.download   = `qr-${selectedAula?.nombreCompleto || aula}.png`;
+      link.click();
       URL.revokeObjectURL(url);
     };
+
     img.src = url;
   };
 
@@ -143,13 +137,11 @@ export default function GeneradorQR() {
 
         {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError("")}>{error}</Alert>}
 
-        {/* Edificio */}
         <Box sx={{ mb: 3 }}>
           <FormControl fullWidth>
             <InputLabel>Edificio</InputLabel>
-            <Select value={edificio} label="Edificio"
-              onChange={e => { setEdificio(String(e.target.value)); setAula(""); setMostrarQR(false); }}
-              disabled={loadingEdificios}>
+            <Select value={edificio} label="Edificio" disabled={loadingEdificios}
+              onChange={e => { setEdificio(String(e.target.value)); setAula(""); setMostrarQR(false); }}>
               <MenuItem value=""><em>Seleccionar edificio</em></MenuItem>
               {loadingEdificios
                 ? <MenuItem disabled><CircularProgress size={20}/></MenuItem>
@@ -159,13 +151,11 @@ export default function GeneradorQR() {
           </FormControl>
         </Box>
 
-        {/* Aula */}
         <Box sx={{ mb: 3 }}>
           <FormControl fullWidth>
             <InputLabel>Aula</InputLabel>
-            <Select value={aula} label="Aula"
-              onChange={e => { setAula(String(e.target.value)); setMostrarQR(false); }}
-              disabled={!edificio || loadingAulas}>
+            <Select value={aula} label="Aula" disabled={!edificio || loadingAulas}
+              onChange={e => { setAula(String(e.target.value)); setMostrarQR(false); }}>
               {!edificio
                 ? <MenuItem disabled><em>Primero seleccioná un edificio</em></MenuItem>
                 : loadingAulas
@@ -181,11 +171,11 @@ export default function GeneradorQR() {
           {generando ? <CircularProgress size={22} color="inherit"/> : "Generar QR"}
         </Button>
 
-        {/* QR resultado */}
         {mostrarQR && urlQR && (
           <Box sx={{ mt: 4, display: "flex", flexDirection: "column", alignItems: "center" }}>
             <Paper ref={qrRef} elevation={2} sx={{ p: 2, borderRadius: 3, background: "white" }}>
-              <QRCode value={urlQR} size={220}/>
+              {/* ✅ QR grande para mejor calidad al exportar */}
+              <QRCode value={urlQR} size={300} level="H" />
             </Paper>
             <Box sx={{ mt: 2, textAlign: "center" }}>
               <Typography variant="body2">Edificio: <strong>{selectedEdificio?.nombre}</strong></Typography>
@@ -210,7 +200,7 @@ export default function GeneradorQR() {
             <Typography variant="h5">QR de aula</Typography>
             <Typography>Edificio: {selectedEdificio?.nombre}</Typography>
             <Typography>Aula: {selectedAula?.nombreCompleto}</Typography>
-            <Box sx={{ mt: 2 }}><QRCode value={urlQR || "sin-token"} size={220}/></Box>
+            <Box sx={{ mt: 2 }}><QRCode value={urlQR || "sin-token"} size={280} level="H"/></Box>
           </Box>
         </DialogContent>
         <DialogActions sx={{ justifyContent: "center" }}>
