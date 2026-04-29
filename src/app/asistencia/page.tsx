@@ -3,328 +3,221 @@
 import { useEffect, useMemo, useState } from "react";
 import AsistenciaGrid from "@/components/AsistenciaGrid";
 import { BACK_URL, getAuthHeaders } from "@/config/api";
+import { useRouter } from "next/navigation";
 
-type RegistroAsistencia = {
-  usuarioId?: string | number;
-  fecha?: string;
-  estado?: string;
-  tipoUsuario?: string;
-  comision?: {
-    comisionId?: string;
-    cod_comision?: string;
-    materiaId?: string | number;
-  };
-};
-
-type EstudianteApi = {
-  dni?: string | number;
-  nombre_apellido?: string;
-};
-
-type AlumnoGrid = {
-  id: string | number;
-  apellido: string;
-  tipo: string;
-};
-
-type AsistenciaGridType = {
-  alumnoId: string | number;
-  fecha: string;
-};
+type AlumnoGrid    = { id: string; apellido: string; tipo: string };
+type AsistenciaRow = { alumnoId: string; fecha: string };
+type InfoComision  = { nombre: string; materia: string; aula: string; edificio: string; dia: string; horario: string };
 
 export default function AsistenciaPage() {
-  const [materiaSeleccionada, setMateriaSeleccionada] = useState("");
+  const router = useRouter();
+
+  const [materias,             setMaterias]             = useState<any[]>([]);
+  const [comisiones,           setComisiones]           = useState<any[]>([]);
+  const [materiaSeleccionada,  setMateriaSeleccionada]  = useState("");
   const [comisionSeleccionada, setComisionSeleccionada] = useState("");
-  const [materias, setMaterias] = useState<any[]>([]);
-  const [comisiones, setComisiones] = useState<any[]>([]);
-  const [allRegistros, setAllRegistros] = useState<RegistroAsistencia[]>([]);
-  const [estudiantesMap, setEstudiantesMap] = useState<Record<string, string>>({});
-  const [fechas, setFechas] = useState<string[]>([]);
-  const [alumnos, setAlumnos] = useState<AlumnoGrid[]>([]);
-  const [asistencias, setAsistencias] = useState<AsistenciaGridType[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [useBackend, setUseBackend] = useState(false);
+  const [infoComision,         setInfoComision]         = useState<InfoComision | null>(null);
 
+  const [fechas,              setFechas]              = useState<string[]>([]);
+  const [alumnos,             setAlumnos]             = useState<AlumnoGrid[]>([]);
+  const [docentes,            setDocentes]            = useState<AlumnoGrid[]>([]);
+  const [asistencias,         setAsistencias]         = useState<AsistenciaRow[]>([]);
+  const [asistenciasDocentes, setAsistenciasDocentes] = useState<AsistenciaRow[]>([]);
+  const [loading,             setLoading]             = useState(false);
+  const [error,               setError]               = useState("");
+
+  const headers = useMemo(() => ({ Accept: "application/json", ...getAuthHeaders() }), []);
+
+  // Cargar catálogo al montar
   useEffect(() => {
-    async function cargarCatálogo() {
+    if (!BACK_URL) { setError("Falta NEXT_PUBLIC_BACK_URL."); return; }
+    (async () => {
       setLoading(true);
-      setError("");
-
-      if (!BACK_URL) {
-        setError(
-          "La variable de entorno NEXT_PUBLIC_BACK_URL no está configurada."
-        );
-        setLoading(false);
-        return;
-      }
-
       try {
-        const url = `${BACK_URL}/api/asistencias`;
-        const headers: Record<string, string> = {
-          Accept: "application/json",
-        };
-        const authHeaders = getAuthHeaders();
+        const [resMat, resCom] = await Promise.all([
+          fetch(`${BACK_URL}/api/materias`,   { headers }),
+          fetch(`${BACK_URL}/api/comisiones`, { headers }),
+        ]);
+        if (!resMat.ok || !resCom.ok) throw new Error("Error cargando catálogo");
+        const dataMat: any[] = await resMat.json();
+        const dataCom: any[] = await resCom.json();
 
-        if (authHeaders.Authorization) {
-          headers.Authorization = authHeaders.Authorization;
-        }
+        setMaterias(dataMat.map(m => ({ id: String(m.materiaId ?? m.id), nombre: m.nombre })));
 
-        const response = await fetch(url, {
-          headers,
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(
-            `Error ${response.status}: ${errorText || response.statusText}`
-          );
-        }
-
-        const data = await response.json();
-        const registros = Array.isArray(data) ? data : [];
-
-        if (!registros.length) {
-          setError("El backend no devolvió datos de asistencias.");
-          setLoading(false);
-          return;
-        }
-
-        const comisionesBackend = Array.from(
-          new Map(
-            registros.map((item) => [
-              item.comision?.comisionId,
-              {
-                id: item.comision?.comisionId,
-                nombre:
-                  item.comision?.cod_comision || item.comision?.comisionId,
-                materiaId: item.comision?.materiaId?.toString(),
-              },
-            ])
-          ).values()
-        ).filter(Boolean);
-
-        let materiasBackend = Array.from(
-          new Map(
-            registros.map((item) => [
-              item.comision?.materiaId,
-              {
-                id: item.comision?.materiaId?.toString(),
-                nombre:
-                  item.comision?.materiaId &&
-                  `Materia ${item.comision?.materiaId}`,
-              },
-            ])
-          ).values()
-        ).filter(Boolean);
-
-        // Intentar cargar materias desde el endpoint /api/materias
-        try {
-          const materiasUrl = `${BACK_URL}/api/materias`;
-          const materiasResponse = await fetch(materiasUrl, {
-            headers,
-          });
-
-          if (materiasResponse.ok) {
-            const materiasData = await materiasResponse.json();
-            if (Array.isArray(materiasData) && materiasData.length > 0) {
-              materiasBackend = materiasData.map((materia) => ({
-                id: materia.id?.toString() || materia.materiaId?.toString(),
-                nombre: materia.nombre || `Materia ${materia.id}`,
-              }));
-            }
-          }
-        } catch (err) {
-          console.error("Error cargando materias:", err);
-        }
-
-        let estudiantesMapBackend: Record<string, string> = {};
-        try {
-          const estudiantesUrl = `${BACK_URL}/api/estudiantes`;
-          const estudiantesResponse = await fetch(estudiantesUrl, {
-            headers,
-          });
-
-          if (estudiantesResponse.ok) {
-            const estudiantesData = await estudiantesResponse.json();
-            if (Array.isArray(estudiantesData)) {
-              estudiantesMapBackend = estudiantesData.reduce(
-                (map: Record<string, string>, estudiante: EstudianteApi) => {
-                  if (estudiante?.dni && estudiante?.nombre_apellido) {
-                    map[estudiante.dni.toString()] = estudiante.nombre_apellido;
-                  }
-                  return map;
-                },
-                {},
-              );
-            }
-          }
-        } catch (err) {
-          console.error("Error cargando estudiantes:", err);
-        }
-
-        setComisiones(comisionesBackend);
-        setMaterias(materiasBackend);
-        setAllRegistros(registros);
-        setEstudiantesMap(estudiantesMapBackend);
-        setUseBackend(true);
-      } catch (err) {
-        console.error(err);
-        setError("No se pudieron cargar materias y comisiones desde el backend.");
+        // Incluimos los datos de horario/aula/edificio si vienen incluidos en comisiones
+        setComisiones(dataCom.map(c => ({
+          id:        String(c.comisionId ?? c.id),
+          nombre:    c.cod_comision ?? c.nombre ?? String(c.comisionId),
+          materiaId: String(c.materiaId),
+          materia:   c.materia?.nombre ?? "",
+          aula:      c.horarios?.[0]?.aula ? `${c.horarios[0].aula.sector}-${c.horarios[0].aula.numero}` : "",
+          edificio:  c.horarios?.[0]?.aula?.edificio?.nombre ?? "",
+          dia:       c.horarios?.[0]?.diaSemana ?? "",
+          horario:   c.horarios?.[0] ? `${c.horarios[0].horaDesde?.slice(0,5)} - ${c.horarios[0].horaHasta?.slice(0,5)}` : "",
+        })));
+      } catch (e: any) {
+        setError(e.message ?? "Error cargando datos.");
       } finally {
         setLoading(false);
       }
-    }
+    })();
+  }, [headers]);
 
-    cargarCatálogo();
-  }, []);
-
+  // Cargar asistencias al elegir comisión
   useEffect(() => {
-    if (!comisionSeleccionada || !useBackend) return;
+    if (!comisionSeleccionada) return;
+    const com = comisiones.find(c => c.id === comisionSeleccionada);
+    if (com) setInfoComision({
+      nombre:   com.nombre,
+      materia:  com.materia || materias.find(m => m.id === com.materiaId)?.nombre || "",
+      aula:     com.aula,
+      edificio: com.edificio,
+      dia:      com.dia,
+      horario:  com.horario,
+    });
 
-    const registros = allRegistros.filter(
-      (item) => item.comision?.comisionId === comisionSeleccionada
-    );
+    (async () => {
+      setLoading(true); setError("");
+      try {
+        const [resAsis, resEst, resProf] = await Promise.all([
+          fetch(`${BACK_URL}/api/asistencias?comisionId=${comisionSeleccionada}`, { headers }),
+          fetch(`${BACK_URL}/api/estudiantes`, { headers }),
+          fetch(`${BACK_URL}/api/profesores`,  { headers }),
+        ]);
+        if (!resAsis.ok) throw new Error("Error cargando asistencias");
 
-    const fechasBackend = Array.from(
-      new Set(
-        registros
-          .map((item) => item.fecha)
-          .filter((fecha): fecha is string => typeof fecha === "string"),
-      )
-    ).sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+        const registros: any[]  = await resAsis.json();
+        const estudiantes: any[] = resEst.ok  ? await resEst.json()  : [];
+        const profesores: any[]  = resProf.ok ? await resProf.json() : [];
 
-    const alumnosBackend = Array.from(
-      new Map(
-        registros
-          .filter((item): item is RegistroAsistencia & { usuarioId: string | number } =>
-            item.usuarioId !== undefined,
-          )
-          .map((item) => {
-            const usuarioKey = item.usuarioId.toString();
+        // Maps de DNI → nombre completo
+        const nomEst: Record<string,string> = {};
+        for (const e of estudiantes) if (e.dni) nomEst[String(e.dni)] = e.nombre_apellido ?? String(e.dni);
+        const nomProf: Record<string,string> = {};
+        for (const p of profesores) if (p.dni) nomProf[String(p.dni)] = p.nombre_apellido ?? String(p.dni);
 
-            return [
-              usuarioKey,
-              {
-                id: item.usuarioId,
-                apellido: estudiantesMap[usuarioKey] ?? usuarioKey,
-                tipo: item.tipoUsuario || "Estudiante",
-              },
-            ] as const;
-          }),
-      ).values(),
-    );
+        // Fechas únicas ordenadas
+        const fechasOrd = [...new Set<string>(registros.map(r => r.fecha).filter(Boolean))].sort();
 
-    const asistenciasBackend = registros
-      .filter(
-        (item): item is RegistroAsistencia & {
-          usuarioId: string | number;
-          fecha: string;
-        } =>
-          item.estado === "PRESENTE" &&
-          item.usuarioId !== undefined &&
-          typeof item.fecha === "string",
-      )
-      .map((item) => ({
-        alumnoId: item.usuarioId,
-        fecha: item.fecha,
-      }));
+        // Separar alumnos y docentes
+        const alumnosMap  = new Map<string, AlumnoGrid>();
+        const docentesMap = new Map<string, AlumnoGrid>();
+        for (const r of registros) {
+          const key = String(r.usuarioId);
+          if (r.tipoUsuario === "PROFESOR") {
+            if (!docentesMap.has(key)) docentesMap.set(key, { id: key, apellido: nomProf[key] ?? key, tipo: "Docente" });
+          } else {
+            if (!alumnosMap.has(key))  alumnosMap.set(key,  { id: key, apellido: nomEst[key]  ?? key, tipo: "Estudiante" });
+          }
+        }
 
-    setFechas(fechasBackend);
-    setAlumnos(alumnosBackend);
-    setAsistencias(asistenciasBackend);
-  }, [comisionSeleccionada, useBackend, allRegistros, estudiantesMap]);
+        // Asistencias por grilla
+        const presente = registros.filter(r => r.estado === "PRESENTE");
+        setAsistencias(presente.filter(r => r.tipoUsuario !== "PROFESOR").map(r => ({ alumnoId: String(r.usuarioId), fecha: r.fecha })));
+        setAsistenciasDocentes(presente.filter(r => r.tipoUsuario === "PROFESOR").map(r => ({ alumnoId: String(r.usuarioId), fecha: r.fecha })));
+        setFechas(fechasOrd);
+        setAlumnos([...alumnosMap.values()]);
+        setDocentes([...docentesMap.values()]);
+      } catch (e: any) {
+        setError(e.message ?? "Error cargando asistencias.");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [comisionSeleccionada, headers, comisiones, materias]);
 
-  const comisionesFiltradas = useMemo(() => {
-    if (!materiaSeleccionada) return [];
-
-    return comisiones.filter(
-      (comision) => comision.materiaId?.toString() === materiaSeleccionada
-    );
-  }, [materiaSeleccionada, comisiones]);
-
-  const handleMateriaChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    const nuevaMateria = event.target.value;
-    setMateriaSeleccionada(nuevaMateria);
-    setComisionSeleccionada("");
-  };
-
-  const handleComisionChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    setComisionSeleccionada(event.target.value);
-  };
+  const comisionesFiltradas = useMemo(
+    () => comisiones.filter(c => c.materiaId === materiaSeleccionada),
+    [comisiones, materiaSeleccionada]
+  );
 
   return (
     <main className="page-container">
+
+      {/* Header */}
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:24 }}>
+        <h1 className="page-title" style={{ margin:0 }}>Grilla de asistencias</h1>
+        <button onClick={() => router.push("/")} style={{
+          padding:"8px 20px", borderRadius:8, border:"1px solid #d1d5db",
+          background:"white", cursor:"pointer", fontWeight:500, fontSize:14,
+        }}>
+          ← Menú principal
+        </button>
+      </div>
+
+      {/* Filtros */}
       <div className="asistencia-filtros">
         <div className="asistencia-filtro">
           <label htmlFor="materia">Materia</label>
-          <select
-            id="materia"
-            value={materiaSeleccionada}
-            onChange={handleMateriaChange}
-          >
+          <select id="materia" value={materiaSeleccionada}
+            onChange={e => { setMateriaSeleccionada(e.target.value); setComisionSeleccionada(""); setInfoComision(null); }}>
             <option value="">Seleccionar materia</option>
-            {materias.map((materia) => (
-              <option key={materia.id} value={materia.id}>
-                {materia.nombre}
-              </option>
-            ))}
+            {materias.map(m => <option key={m.id} value={m.id}>{m.nombre}</option>)}
           </select>
         </div>
-
         <div className="asistencia-filtro">
           <label htmlFor="comision">Comisión</label>
-          <select
-            id="comision"
-            value={comisionSeleccionada}
-            onChange={handleComisionChange}
-            disabled={!materiaSeleccionada}
-          >
+          <select id="comision" value={comisionSeleccionada} disabled={!materiaSeleccionada}
+            onChange={e => setComisionSeleccionada(e.target.value)}>
             <option value="">Seleccionar comisión</option>
-            {comisionesFiltradas.map((comision) => (
-              <option key={comision.id} value={comision.id}>
-                {comision.nombre}
-              </option>
-            ))}
+            {comisionesFiltradas.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
           </select>
         </div>
       </div>
 
-      {comisionSeleccionada ? (
+      {/* Info de la comisión */}
+      {infoComision && (
+        <div style={{
+          background:"white", borderRadius:12, padding:"16px 24px",
+          boxShadow:"0 4px 14px rgba(0,0,0,0.08)", marginBottom:24,
+          display:"flex", flexWrap:"wrap", gap:"12px 32px",
+        }}>
+          {infoComision.materia  && <Chip label="Materia"  val={infoComision.materia} />}
+          {infoComision.aula     && <Chip label="Aula"     val={infoComision.aula} />}
+          {infoComision.edificio && <Chip label="Edificio" val={infoComision.edificio} />}
+          {infoComision.dia      && <Chip label="Día"      val={cap(infoComision.dia)} />}
+          {infoComision.horario  && <Chip label="Horario"  val={infoComision.horario} />}
+        </div>
+      )}
+
+      {/* Error */}
+      {error && <div style={{ marginBottom:16, color:"#b91c1c", background:"#fee2e2", padding:"12px 16px", borderRadius:8 }}>{error}</div>}
+
+      {!comisionSeleccionada && <div className="asistencia-placeholder">Seleccioná una materia y una comisión para ver la grilla.</div>}
+      {comisionSeleccionada && loading && <div className="asistencia-placeholder">Cargando datos...</div>}
+
+      {comisionSeleccionada && !loading && (
         <>
-          {loading && (
-            <div className="asistencia-placeholder">
-              Cargando datos desde el backend...
+          <AsistenciaGrid
+            titulo="Asistencia de estudiantes"
+            fechas={fechas}
+            alumnos={alumnos}
+            asistencias={asistencias}
+            columnaPersona="Nombre y apellido"
+          />
+          {docentes.length > 0 && (
+            <div style={{ marginTop:32 }}>
+              <AsistenciaGrid
+                titulo="Asistencia del docente"
+                fechas={fechas}
+                alumnos={docentes}
+                asistencias={asistenciasDocentes}
+                columnaPersona="Docente"
+              />
             </div>
-          )}
-
-          {error && (
-            <div
-              style={{
-                marginBottom: 16,
-                color: "#b91c1c",
-                backgroundColor: "#fee2e2",
-                padding: "12px 16px",
-                borderRadius: 8,
-              }}
-            >
-              {error}
-            </div>
-          )}
-
-          {!loading && (
-            <AsistenciaGrid
-              fechas={fechas}
-              alumnos={alumnos}
-              asistencias={asistencias}
-            />
           )}
         </>
-      ) : (
-        <div className="asistencia-placeholder">
-          Seleccioná una materia y una comisión para ver la grilla.
-        </div>
       )}
     </main>
   );
 }
+
+function Chip({ label, val }: { label: string; val: string }) {
+  return (
+    <div>
+      <div style={{ fontSize:11, fontWeight:600, color:"#6b7280", textTransform:"uppercase", letterSpacing:"0.05em" }}>{label}</div>
+      <div style={{ fontSize:15, fontWeight:600, color:"#111827", marginTop:2 }}>{val}</div>
+    </div>
+  );
+}
+function cap(s: string) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
