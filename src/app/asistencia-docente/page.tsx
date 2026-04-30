@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "next/navigation"; 
+// @ts-ignore
 import AsistenciaGrid from "@/components/AsistenciaGrid";
 import { BACK_URL, getAuthHeaders } from "@/config/api";
 
