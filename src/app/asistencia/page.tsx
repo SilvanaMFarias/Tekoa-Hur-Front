@@ -13,8 +13,8 @@ export default function AsistenciaPage() {
   const [comisionSeleccionada, setComisionSeleccionada] = useState("");
   const [materias,             setMaterias]             = useState<any[]>([]);
   const [comisiones,           setComisiones]           = useState<any[]>([]);
-  const [infoComision,         setInfoComision]         = useState<any[]>(null);
-  const [estudiantesMap,       setEstudiantesMap]       = useState<any[]>({});
+  const [infoComision,         setInfoComision]         = useState<any>(null);
+  const [estudiantesMap,       setEstudiantesMap]       = useState<Record<string, any>>({});
   const [fechas,               setFechas]               = useState<any[]>([]);
   const [alumnos,              setAlumnos]              = useState<any[]>([]);
   const [asistencias,          setAsistencias]          = useState<any[]>([]);
