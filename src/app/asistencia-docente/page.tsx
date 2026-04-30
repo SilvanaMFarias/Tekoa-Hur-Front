@@ -309,7 +309,8 @@ export default function AsistenciaDocentePage() {
       {comisionSeleccionada && loading && (
         <div className="asistencia-placeholder">Cargando datos...</div>
       )}
-      {comisionSeleccionada && !loading && (
+      {comisionSeleccionada && !loading && (() => {
+       const Grid: any = AsistenciaGrid;
         /* Reemplazo componente para que TS deje de forzar never[]*/
         //<AsistenciaGrid
         //  titulo={`Asistencia — ${profSeleccionado?.nombre ?? ""}`}
@@ -320,9 +321,6 @@ export default function AsistenciaDocentePage() {
         //  mostrarDni={false}
         //  mostrarVolver={false}
         ///>  
-        {(() => {
-  const Grid: any = AsistenciaGrid;
-
   return (
     <Grid
       titulo={`Asistencia — ${profSeleccionado?.nombre ?? ""}`}
