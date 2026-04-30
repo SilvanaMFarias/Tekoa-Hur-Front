@@ -295,9 +295,9 @@ export default function AsistenciaPage() {
         <AsistenciaGrid
           titulo="Asistencia de estudiantes"
           headerNombre="Nombre y apellido"
-          fechas={fechas}
-          alumnos={alumnos}
-          asistencias={asistencias}
+          fechas={fechas as any[]}
+          alumnos={alumnos as any[]}
+          asistencias={asistencias as any[]}
           mostrarDni={true}
           mostrarVolver={false}
         />
