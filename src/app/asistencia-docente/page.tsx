@@ -96,7 +96,7 @@ export default function AsistenciaDocentePage() {
         const registros   = await resAsis.json();
         const profesoresR = resProf.ok ? await resProf.json() : [];
 
-        const profMap = {};
+        const profMap: Record<string, any> = {};
         for (const p of profesoresR) {
           if (p.dni) profMap[String(p.dni)] = { nombre: p.nombre_apellido, dni: p.dni };
         }
