@@ -339,6 +339,6 @@ export default function AsistenciaDocentePage() {
   );
 }
 
-function cap(s) {
+function cap(s: string) {
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 }
