@@ -8,15 +8,15 @@ import { BACK_URL, getAuthHeaders } from "@/config/api";
 export default function AsistenciaDocentePage() {
   const router = useRouter();
 
-  const [profesores,           setProfesores]           = useState([]);
+  const [profesores,           setProfesores]           = useState<any[]>([]);
   const [comisiones,           setComisiones]           = useState([]);
   const [profesorSeleccionado, setProfesorSeleccionado] = useState("");
   const [comisionSeleccionada, setComisionSeleccionada] = useState("");
   const [infoComision,         setInfoComision]         = useState(null);
 
-  const [fechas,      setFechas]      = useState([]);
-  const [docentes,    setDocentes]    = useState([]);
-  const [asistencias, setAsistencias] = useState([]);
+  const [fechas,      setFechas]      = useState<any[]>([]);
+  const [docentes,    setDocentes]    = useState<any[]>([]);
+  const [asistencias, setAsistencias] = useState<any[]>([]);
   const [loading,     setLoading]     = useState(false);
   const [loadingCat,  setLoadingCat]  = useState(true);
   const [error,       setError]       = useState("");
