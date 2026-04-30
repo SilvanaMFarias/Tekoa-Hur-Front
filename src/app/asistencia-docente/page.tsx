@@ -93,7 +93,7 @@ export default function AsistenciaDocentePage() {
         ]);
         if (!resAsis.ok) throw new Error("Error cargando asistencias");
 
-        const registros   = await resAsis.json();
+        const registros: any[]   = await resAsis.json();
         const profesoresR = resProf.ok ? await resProf.json() : [];
 
         const profMap: Record<string, any> = {};
@@ -101,8 +101,8 @@ export default function AsistenciaDocentePage() {
           if (p.dni) profMap[String(p.dni)] = { nombre: p.nombre_apellido, dni: p.dni };
         }
 
-        const soloDocentes = registros.filter((r) => r.tipoUsuario === "PROFESOR");
-        const fechasOrd    = [...new Set(soloDocentes.map((r) => r.fecha).filter(Boolean))].sort();
+        const soloDocentes = registros.filter((r: any) => r.tipoUsuario === "PROFESOR");
+        const fechasOrd = [...new Set(soloDocentes.map((r: any) => r.fecha).filter(Boolean))].sort();
 
         const docentesMap = new Map();
         for (const r of soloDocentes) {
