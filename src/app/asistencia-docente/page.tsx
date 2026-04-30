@@ -12,7 +12,7 @@ export default function AsistenciaDocentePage() {
   const [comisiones,           setComisiones]           = useState<any[]>([]);
   const [profesorSeleccionado, setProfesorSeleccionado] = useState("");
   const [comisionSeleccionada, setComisionSeleccionada] = useState("");
-  const [infoComision,         setInfoComision]         = useState(null);
+  const [infoComision,         setInfoComision]         = useState<any>(null);
 
   const [fechas,      setFechas]      = useState<any[]>([]);
   const [docentes,    setDocentes]    = useState<any[]>([]);
