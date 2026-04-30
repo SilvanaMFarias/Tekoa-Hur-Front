@@ -68,7 +68,7 @@ const headers: HeadersInit = useMemo(() => {
         })));
 
         // Map DNI → nombre_apellido
-        const nom = {};
+        const nom: Record<string, any> = {};
         for (const e of dataEst) {
           if (e.dni) nom[String(e.dni)] = e.nombre_apellido ?? String(e.dni);
         }
@@ -83,7 +83,7 @@ const headers: HeadersInit = useMemo(() => {
   // ── Al cambiar comisión: guardar info y cargar asistencias ───
   useEffect(() => {
     if (!comisionSeleccionada) { setInfoComision(null); return; }
-    const com = comisiones.find((c) => c.id === comisionSeleccionada);
+    const com = comisiones.find((c: any) => c.id === comisionSeleccionada);
     setInfoComision(com ?? null);
   }, [comisionSeleccionada, comisiones]);
 
@@ -97,12 +97,12 @@ const headers: HeadersInit = useMemo(() => {
           { headers }
         );
         if (!res.ok) throw new Error("Error cargando asistencias");
-        const registros = await res.json();
+        const registros: any[] = await res.json();
 
         const soloAlumnos = registros.filter((r: any) => r.tipoUsuario !== "PROFESOR");
-        const fechasOrd   = [...new Set(soloAlumnos.map((r) => r.fecha).filter(Boolean))].sort();
+        const fechasOrd   = [...new Set(soloAlumnos.map((r: any) => r.fecha).filter(Boolean))].sort();
 
-        const alumnosMap = new Map();
+        const alumnosMap = new Map<string, any>();
         for (const r of soloAlumnos) {
           const key = String(r.usuarioId);
           if (!alumnosMap.has(key)) {
@@ -116,8 +116,8 @@ const headers: HeadersInit = useMemo(() => {
         }
 
         const asis = soloAlumnos
-          .filter((r) => r.estado === "PRESENTE")
-          .map((r) => ({ alumnoId: String(r.usuarioId), fecha: r.fecha }));
+          .filter((r: any) => r.estado === "PRESENTE")
+          .map((r: any) => ({ alumnoId: String(r.usuarioId), fecha: r.fecha }));
 
         setFechas(fechasOrd);
         setAlumnos([...alumnosMap.values()]);
@@ -129,7 +129,7 @@ const headers: HeadersInit = useMemo(() => {
   }, [comisionSeleccionada, headers, estudiantesMap]);
 
   const comisionesFiltradas = useMemo(
-    () => comisiones.filter((c) => c.materiaId === materiaSeleccionada),
+    () => comisiones.filter((c: any) => c.materiaId === materiaSeleccionada),
     [comisiones, materiaSeleccionada]
   );
 
