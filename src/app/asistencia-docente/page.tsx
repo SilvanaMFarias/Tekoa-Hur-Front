@@ -312,9 +312,9 @@ export default function AsistenciaDocentePage() {
         <AsistenciaGrid
           titulo={`Asistencia — ${profSeleccionado?.nombre ?? ""}`}
           headerNombre="Docente"
-          fechas={fechas}
-          alumnos={docentes}
-          asistencias={asistencias}
+          fechas={fechas as any[]}
+          alumnos={docentes as any[]}
+          asistencias={asistencias as any[]}
           mostrarDni={false}
           mostrarVolver={false}
         />
