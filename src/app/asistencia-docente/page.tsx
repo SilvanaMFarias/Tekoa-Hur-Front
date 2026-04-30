@@ -44,13 +44,13 @@ export default function AsistenciaDocentePage() {
         const dataProf = await resProf.json();
         const dataCom  = await resCom.json();
 
-        setProfesores(dataProf.map((p) => ({
+        setProfesores(dataProf.map((p: any) => ({
           id:     String(p.profesorId ?? p.dni),
           dni:    p.dni,
           nombre: p.nombre_apellido,
         })));
 
-        setComisiones(dataCom.map((c) => ({
+        setComisiones(dataCom.map((c: any) => ({
           id:         String(c.comisionId ?? c.id),
           nombre:     c.cod_comision ?? String(c.comisionId),
           profesorId: String(c.profesorId),
