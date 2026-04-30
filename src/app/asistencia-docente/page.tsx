@@ -21,10 +21,14 @@ export default function AsistenciaDocentePage() {
   const [loadingCat,  setLoadingCat]  = useState(true);
   const [error,       setError]       = useState("");
 
-  const headers = useMemo(() => ({
+  const headers: HeadersInit = useMemo(() => {
+  const auth = getAuthHeaders();
+
+  return {
     Accept: "application/json",
-    ...getAuthHeaders(),
-  }), []);
+    ...(auth?.Authorization && { Authorization: auth.Authorization }),
+  };
+}, []);
 
   // ── Cargar catálogo inicial ──────────────────────────────────
   useEffect(() => {
