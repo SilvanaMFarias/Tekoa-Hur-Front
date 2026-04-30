@@ -63,7 +63,7 @@ export default function AsistenciaDocentePage() {
                         ? `${c.horarios[0].horaDesde?.slice(0,5)} – ${c.horarios[0].horaHasta?.slice(0,5)}`
                         : "",
         })));
-      } catch (e) {
+      } catch (e: any) {
         setError(e.message ?? "Error.");
       } finally { setLoadingCat(false); }
     })();
