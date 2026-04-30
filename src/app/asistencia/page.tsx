@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+// @ts-ignore
 import AsistenciaGrid from "@/components/AsistenciaGrid";
 import { BACK_URL, getAuthHeaders } from "@/config/api";
 
@@ -10,20 +11,24 @@ export default function AsistenciaPage() {
 
   const [materiaSeleccionada,  setMateriaSeleccionada]  = useState("");
   const [comisionSeleccionada, setComisionSeleccionada] = useState("");
-  const [materias,             setMaterias]             = useState([]);
-  const [comisiones,           setComisiones]           = useState([]);
-  const [infoComision,         setInfoComision]         = useState(null);
-  const [estudiantesMap,       setEstudiantesMap]       = useState({});
-  const [fechas,               setFechas]               = useState([]);
-  const [alumnos,              setAlumnos]              = useState([]);
-  const [asistencias,          setAsistencias]          = useState([]);
+  const [materias,             setMaterias]             = useState<any[]>([]);
+  const [comisiones,           setComisiones]           = useState<any[]>([]);
+  const [infoComision,         setInfoComision]         = useState<any[]>(null);
+  const [estudiantesMap,       setEstudiantesMap]       = useState<any[]>({});
+  const [fechas,               setFechas]               = useState<any[]>([]);
+  const [alumnos,              setAlumnos]              = useState<any[]>([]);
+  const [asistencias,          setAsistencias]          = useState<any[]>([]);
   const [loading,              setLoading]              = useState(false);
   const [error,                setError]                = useState("");
 
-  const headers = useMemo(() => ({
+const headers: HeadersInit = useMemo(() => {
+  const auth = getAuthHeaders();
+
+  return {
     Accept: "application/json",
-    ...getAuthHeaders(),
-  }), []);
+    ...(auth?.Authorization && { Authorization: auth.Authorization }),
+  };
+}, []);
 
   // ── Carga inicial: materias, comisiones y estudiantes ────────
   useEffect(() => {
@@ -42,12 +47,12 @@ export default function AsistenciaPage() {
         const dataCom = await resCom.json();
         const dataEst = resEst.ok ? await resEst.json() : [];
 
-        setMaterias(dataMat.map((m) => ({
+        setMaterias(dataMat.map((m: any) => ({
           id:     String(m.materiaId ?? m.id),
           nombre: m.nombre,
         })));
 
-        setComisiones(dataCom.map((c) => ({
+        setComisiones(dataCom.map((c: any) => ({
           id:        String(c.comisionId ?? c.id),
           nombre:    c.cod_comision ?? String(c.comisionId),
           materiaId: String(c.materiaId),
@@ -69,7 +74,7 @@ export default function AsistenciaPage() {
         }
         setEstudiantesMap(nom);
 
-      } catch (e) {
+      } catch (e: any) {
         setError(e.message ?? "Error cargando datos.");
       } finally { setLoading(false); }
     })();
@@ -94,7 +99,7 @@ export default function AsistenciaPage() {
         if (!res.ok) throw new Error("Error cargando asistencias");
         const registros = await res.json();
 
-        const soloAlumnos = registros.filter((r) => r.tipoUsuario !== "PROFESOR");
+        const soloAlumnos = registros.filter((r: any) => r.tipoUsuario !== "PROFESOR");
         const fechasOrd   = [...new Set(soloAlumnos.map((r) => r.fecha).filter(Boolean))].sort();
 
         const alumnosMap = new Map();
@@ -117,7 +122,7 @@ export default function AsistenciaPage() {
         setFechas(fechasOrd);
         setAlumnos([...alumnosMap.values()]);
         setAsistencias(asis);
-      } catch (e) {
+      } catch (e: any) {
         setError(e.message ?? "Error.");
       } finally { setLoading(false); }
     })();
@@ -306,6 +311,6 @@ export default function AsistenciaPage() {
   );
 }
 
-function cap(s) {
+function cap(s: string) {
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 }
