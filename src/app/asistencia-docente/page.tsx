@@ -310,15 +310,32 @@ export default function AsistenciaDocentePage() {
         <div className="asistencia-placeholder">Cargando datos...</div>
       )}
       {comisionSeleccionada && !loading && (
-        <AsistenciaGrid
-          titulo={`Asistencia — ${profSeleccionado?.nombre ?? ""}`}
-          headerNombre="Docente"
-          fechas={fechas as any[]}
-          alumnos={docentes as any[]}
-          asistencias={asistencias as any[]}
-          mostrarDni={false}
-          mostrarVolver={false}
-        />
+        /* Reemplazo componente para que TS deje de forzar never[]*/
+        //<AsistenciaGrid
+        //  titulo={`Asistencia — ${profSeleccionado?.nombre ?? ""}`}
+        //  headerNombre="Docente"
+        //  fechas={fechas as any[]}
+        //  alumnos={docentes as any[]}
+        //  asistencias={asistencias as any[]}
+        //  mostrarDni={false}
+        //  mostrarVolver={false}
+        ///>  
+        {(() => {
+  const Grid: any = AsistenciaGrid;
+
+  return (
+    <Grid
+      titulo={`Asistencia — ${profSeleccionado?.nombre ?? ""}`}
+      headerNombre="Docente"
+      fechas={fechas}
+      alumnos={docentes}
+      asistencias={asistencias}
+      mostrarDni={false}
+      mostrarVolver={false}
+    />
+  );
+})()}
+      
       )}
     </main>
   );
