@@ -296,17 +296,21 @@ const headers: HeadersInit = useMemo(() => {
       {comisionSeleccionada && loading && (
         <div className="asistencia-placeholder">Cargando datos...</div>
       )}
-      {comisionSeleccionada && !loading && (
-        <AsistenciaGrid
-          titulo="Asistencia de estudiantes"
-          headerNombre="Nombre y apellido"
-          fechas={fechas as any[]}
-          alumnos={alumnos as any[]}
-          asistencias={asistencias as any[]}
-          mostrarDni={true}
-          mostrarVolver={false}
-        />
-      )}
+{comisionSeleccionada && !loading && (() => {
+  const Grid: any = AsistenciaGrid;
+
+  return (
+    <Grid
+      titulo="Asistencia de estudiantes"
+      headerNombre="Nombre y apellido"
+      fechas={fechas}
+      alumnos={alumnos}
+      asistencias={asistencias}
+      mostrarDni={true}
+      mostrarVolver={false}
+    />
+  );
+})()}
     </main>
   );
 }
