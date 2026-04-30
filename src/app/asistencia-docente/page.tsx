@@ -334,7 +334,7 @@ export default function AsistenciaDocentePage() {
   );
 })()}
       
-      )}
+    
     </main>
   );
 }
