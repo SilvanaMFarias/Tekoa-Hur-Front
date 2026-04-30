@@ -126,7 +126,7 @@ export default function AsistenciaDocentePage() {
         setFechas(fechasOrd);
         setDocentes([...docentesMap.values()]);
         setAsistencias(asis);
-      } catch (e) {
+      } catch (e: any) {
         setError(e.message ?? "Error.");
       } finally { setLoading(false); }
     })();
