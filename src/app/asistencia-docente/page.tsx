@@ -31,14 +31,14 @@ export default function AsistenciaDocentePage() {
   };
 }, []);
 
-  // ── Cargar catálogo inicial ──────────────────────────────────
+  // Cargar catálogo inicial
   useEffect(() => {
     if (!BACK_URL) { setError("Falta NEXT_PUBLIC_BACK_URL."); return; }
     (async () => {
       try {
         const [resProf, resCom] = await Promise.all([
-          fetch(`${BACK_URL}/api/profesores`,  { headers }),
-          fetch(`${BACK_URL}/api/comisiones`,  { headers }),
+          fetch(`${BACK_URL}/api/profesores`, { headers }),
+          fetch(`${BACK_URL}/api/comisiones`, { headers }),
         ]);
         if (!resProf.ok || !resCom.ok) throw new Error("Error cargando catálogo");
 
@@ -82,7 +82,7 @@ export default function AsistenciaDocentePage() {
     setInfoComision(comisiones.find((c) => c.id === comisionSeleccionada) ?? null);
   }, [comisionSeleccionada, comisiones]);
 
-  // ── Cargar asistencias del docente ───────────────────────────
+  // Cargar asistencias del docente
   useEffect(() => {
     if (!comisionSeleccionada) return;
     (async () => {
@@ -112,8 +112,6 @@ export default function AsistenciaDocentePage() {
           if (!docentesMap.has(key)) {
             docentesMap.set(key, {
               id:      key,
-              // ✅ NO incluimos dni — el DNI ya aparece en el bloque de info superior
-              // así no se duplica en la grilla
               apellido: prof?.nombre ?? key,
               tipo:    "Docente",
             });
@@ -136,206 +134,136 @@ export default function AsistenciaDocentePage() {
   const profSeleccionado = profesores.find((p) => p.id === profesorSeleccionado);
 
   return (
-    <main className="page-container">
+    <div className="flex flex-1 flex-col px-4 py-8 sm:px-6 sm:py-10">
+      <div className="mx-auto w-full max-w-6xl">
 
-      {/* ── Header ── */}
-      <div style={{
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        marginBottom: 28,
-      }}>
-        <div>
-          <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: "#0f172a" }}>
-            Asistencias
-          </h1>
-          <p style={{ margin: "4px 0 0", fontSize: 14, color: "#64748b" }}>
-            Historial de asistencia por docente
-          </p>
-        </div>
+        {/* ── Encabezado + tabs ──────────────────────────────────── */}
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-800">Asistencias</h1>
+            <p className="mt-1 text-sm text-gray-500">Historial de asistencia por docente</p>
+          </div>
 
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          {/* Toggle bonito */}
-          <div style={{
-            display: "flex", borderRadius: 10, overflow: "hidden",
-            boxShadow: "0 1px 4px rgba(0,0,0,0.12)",
-          }}>
+          {/* Toggle — ✅ verde institucional, sin botón Menú duplicado */}
+          <div className="flex rounded-xl border border-gray-200 bg-gray-100 p-1 self-start sm:self-auto">
             <button
               onClick={() => router.push("/asistencia")}
-              style={{
-                padding: "9px 20px", fontWeight: 600, fontSize: 14,
-                background: "#f1f5f9", color: "#475569",
-                border: "none", cursor: "pointer",
-                display: "flex", alignItems: "center", gap: 7,
-                transition: "background 0.15s",
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.background = "#e2e8f0"}
-              onMouseLeave={(e) => e.currentTarget.style.background = "#f1f5f9"}
+              className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-gray-500 transition hover:text-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
             >
-              <span>👨‍🎓</span> Estudiantes
+              🧑‍🎓 Estudiantes
             </button>
-            <div style={{
-              padding: "9px 20px", fontWeight: 700, fontSize: 14,
-              background: "#2563eb", color: "white",
-              display: "flex", alignItems: "center", gap: 7,
-              cursor: "default",
-            }}>
-              <span>👨‍🏫</span> Docentes
+            {/* ✅ Verde institucional en lugar de azul #2563eb */}
+            <div className="flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-medium text-green-800 shadow-sm">
+              👨‍🏫 Docentes
             </div>
           </div>
-
-          <button
-            onClick={() => router.push("/")}
-            style={{
-              padding: "9px 16px", borderRadius: 10, border: "1px solid #e2e8f0",
-              background: "white", cursor: "pointer", fontWeight: 500,
-              fontSize: 14, color: "#374151",
-              boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
-            }}
-          >
-            ← Menú
-          </button>
         </div>
-      </div>
 
-      {/* ── Filtros ── */}
-      <div style={{
-        background: "white", borderRadius: 14, padding: "20px 24px",
-        boxShadow: "0 2px 10px rgba(0,0,0,0.06)", marginBottom: 20,
-        display: "flex", gap: 20, flexWrap: "wrap",
-      }}>
-        <div className="asistencia-filtro" style={{ flex: 1, minWidth: 200 }}>
-          <label htmlFor="docente">Docente</label>
-          <select
-            id="docente"
-            value={profesorSeleccionado}
-            disabled={loadingCat}
-            onChange={(e) => { setProfesorSeleccionado(e.target.value); setComisionSeleccionada(""); }}
-          >
-            <option value="">{loadingCat ? "Cargando..." : "Seleccionar docente"}</option>
-            {profesores.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-          </select>
-        </div>
-        <div className="asistencia-filtro" style={{ flex: 1, minWidth: 200 }}>
-          <label htmlFor="comision">Comisión</label>
-          <select
-            id="comision"
-            value={comisionSeleccionada}
-            disabled={!profesorSeleccionado || comisionesFiltradas.length === 0}
-            onChange={(e) => setComisionSeleccionada(e.target.value)}
-          >
-            <option value="">
-              {!profesorSeleccionado ? "Primero elegí un docente"
-                : comisionesFiltradas.length === 0 ? "Sin comisiones"
-                : "Seleccionar comisión"}
-            </option>
-            {comisionesFiltradas.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-          </select>
-        </div>
-      </div>
+        {/* ── Filtros ─────────────────────────────────────────────── */}
+        <div className="mb-4 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-200">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 
-      {/* ── Info del docente + comisión ── */}
-      {profSeleccionado && (
-        <div style={{
-          display: "flex", gap: 0, marginBottom: 20,
-          background: "white", borderRadius: 14,
-          boxShadow: "0 2px 10px rgba(0,0,0,0.06)",
-          overflow: "hidden",
-        }}>
-          <div style={{ width: 5, background: "#7c3aed", flexShrink: 0 }} />
-          <div style={{ padding: "16px 24px", display: "flex", gap: 32, flexWrap: "wrap", alignItems: "center" }}>
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>
-                Docente
-              </div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: "#0f172a" }}>
-                👨‍🏫 {profSeleccionado.nombre}
-              </div>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="docente" className="text-sm font-medium text-gray-700">Docente</label>
+              <select
+                id="docente"
+                value={profesorSeleccionado}
+                disabled={loadingCat}
+                onChange={(e) => { setProfesorSeleccionado(e.target.value); setComisionSeleccionada(""); }}
+                className="rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-green-600 focus:outline-none focus:ring-2 focus:ring-green-200 disabled:opacity-50"
+              >
+                <option value="">{loadingCat ? "Cargando..." : "Seleccionar docente"}</option>
+                {profesores.map((p) => (
+                  <option key={p.id} value={p.id}>{p.nombre}</option>
+                ))}
+              </select>
             </div>
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>
-                DNI
-              </div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: "#0f172a" }}>
-                {profSeleccionado.dni}
-              </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="comision" className="text-sm font-medium text-gray-700">Comisión</label>
+              <select
+                id="comision"
+                value={comisionSeleccionada}
+                disabled={!profesorSeleccionado || comisionesFiltradas.length === 0}
+                onChange={(e) => setComisionSeleccionada(e.target.value)}
+                className="rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-green-600 focus:outline-none focus:ring-2 focus:ring-green-200 disabled:opacity-50"
+              >
+                <option value="">
+                  {!profesorSeleccionado ? "Primero elegí un docente"
+                    : comisionesFiltradas.length === 0 ? "Sin comisiones"
+                    : "Seleccionar comisión"}
+                </option>
+                {comisionesFiltradas.map((c) => (
+                  <option key={c.id} value={c.id}>{c.nombre}</option>
+                ))}
+              </select>
             </div>
-            {infoComision?.edificio && (
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>
-                  Edificio
-                </div>
-                <div style={{ fontSize: 16, fontWeight: 700, color: "#0f172a" }}>
-                  🏢 {infoComision.edificio}
-                </div>
-              </div>
-            )}
-            {infoComision?.aula && (
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>
-                  Aula
-                </div>
-                <div style={{ fontSize: 16, fontWeight: 700, color: "#0f172a" }}>
-                  🚪 {infoComision.aula}
-                </div>
-              </div>
-            )}
-            {infoComision?.dia && (
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>
-                  Día y horario
-                </div>
-                <div style={{ fontSize: 16, fontWeight: 700, color: "#0f172a" }}>
-                  📅 {cap(infoComision.dia)} {infoComision.horario}
-                </div>
-              </div>
-            )}
           </div>
         </div>
-      )}
 
-      {/* ── Error ── */}
-      {error && (
-        <div style={{ marginBottom: 16, color: "#b91c1c", background: "#fee2e2", padding: "12px 16px", borderRadius: 10 }}>
-          {error}
-        </div>
-      )}
+        {/* ── Info del docente + comisión ─────────────────────────── */}
+        {profSeleccionado && (
+          <div className="mb-4 flex overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-gray-200">
+            {/* ✅ Barra lateral verde institucional en lugar de violeta */}
+            <div className="w-1.5 shrink-0 bg-green-700" />
+            <div className="flex flex-wrap items-center gap-6 px-5 py-4">
+              {[
+                { label: "Docente",      valor: `👨‍🏫 ${profSeleccionado.nombre}` },
+                { label: "DNI",          valor: profSeleccionado.dni },
+                infoComision?.edificio && { label: "Edificio", valor: `🏢 ${infoComision.edificio}` },
+                infoComision?.aula      && { label: "Aula",     valor: `🚪 ${infoComision.aula}` },
+                infoComision?.dia       && { label: "Día y horario", valor: `📅 ${cap(infoComision.dia)} ${infoComision.horario}` },
+              ].filter(Boolean).map(({ label, valor }) => (
+                <div key={label}>
+                  <div className="text-xs font-semibold uppercase tracking-wide text-gray-400">{label}</div>
+                  <div className="mt-0.5 text-sm font-semibold text-gray-800">{valor}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
-      {/* ── Estados ── */}
-      {!profesorSeleccionado && (
-        <div className="asistencia-placeholder">Seleccioná un docente para ver su historial.</div>
-      )}
-      {profesorSeleccionado && !comisionSeleccionada && (
-        <div className="asistencia-placeholder">Ahora elegí una comisión.</div>
-      )}
-      {comisionSeleccionada && loading && (
-        <div className="asistencia-placeholder">Cargando datos...</div>
-      )}
-      {comisionSeleccionada && !loading && (() => {
-       const Grid: any = AsistenciaGrid;
-        /* Reemplazo componente para que TS deje de forzar never[]*/
-        //<AsistenciaGrid
-        //  titulo={`Asistencia — ${profSeleccionado?.nombre ?? ""}`}
-        //  headerNombre="Docente"
-        //  fechas={fechas as any[]}
-        //  alumnos={docentes as any[]}
-        //  asistencias={asistencias as any[]}
-        //  mostrarDni={false}
-        //  mostrarVolver={false}
-        ///>  
-  return (
-    <Grid
-      titulo={`Asistencia — ${profSeleccionado?.nombre ?? ""}`}
-      headerNombre="Docente"
-      fechas={fechas}
-      alumnos={docentes}
-      asistencias={asistencias}
-      mostrarDni={false}
-      mostrarVolver={false}
-    />
-  );
-})()}
-      
-    
-    </main>
+        {/* ── Error ─────────────────────────────────────────────────── */}
+        {error && (
+          <div className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+        )}
+
+        {/* ── Estados vacíos ─────────────────────────────────────── */}
+        {!profesorSeleccionado && !loading && (
+          <div className="rounded-2xl bg-white px-5 py-10 text-center text-sm text-gray-400 shadow-sm ring-1 ring-gray-200">
+            Seleccioná un docente para ver su historial.
+          </div>
+        )}
+        {profesorSeleccionado && !comisionSeleccionada && (
+          <div className="rounded-2xl bg-white px-5 py-10 text-center text-sm text-gray-400 shadow-sm ring-1 ring-gray-200">
+            Ahora elegí una comisión.
+          </div>
+        )}
+        {comisionSeleccionada && loading && (
+          <div className="flex items-center justify-center gap-3 rounded-2xl bg-white py-12 shadow-sm ring-1 ring-gray-200">
+            <svg className="h-5 w-5 animate-spin text-green-700" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+            </svg>
+            <span className="text-sm text-gray-500">Cargando datos...</span>
+          </div>
+        )}
+
+        {/* ── Grilla ─────────────────────────────────────────────── */}
+        {comisionSeleccionada && !loading && !error && (
+          <AsistenciaGrid
+            titulo={`Asistencia — ${profSeleccionado?.nombre ?? ""}`}
+            headerNombre="Docente"
+            fechas={fechas}
+            alumnos={docentes}
+            asistencias={asistencias}
+            mostrarDni={false}
+            mostrarVolver={false}
+          />
+        )}
+
+      </div>
+    </div>
   );
 }
 

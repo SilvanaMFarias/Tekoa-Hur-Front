@@ -1,22 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+import { BACK_URL, getAuthHeaders } from "@/config/api"; // ✅ igual que el resto del proyecto
 
 export default function EstudiantesPage() {
   const [estudiantes, setEstudiantes] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [busqueda, setBusqueda] = useState("");
+  const [loading, setLoading]         = useState(true);
+  const [error, setError]             = useState("");
+  const [busqueda, setBusqueda]       = useState("");
 
   useEffect(() => {
-    fetch(`${API_URL}/api/estudiantes`)
+    fetch(`${BACK_URL}/api/estudiantes`, {
+      headers: getAuthHeaders(), // ✅ envía Basic Auth
+    })
       .then((r) => r.json())
-      .then((data) => {
-        // ✅ La API devuelve un array directo: [{dni, nombre_apellido, comisiones, ...}]
-        setEstudiantes(Array.isArray(data) ? data : []);
-      })
+      .then((data) => setEstudiantes(Array.isArray(data) ? data : []))
       .catch(() => setError("No se pudieron cargar los estudiantes."))
       .finally(() => setLoading(false));
   }, []);
@@ -25,7 +23,6 @@ export default function EstudiantesPage() {
     const texto = busqueda.toLowerCase();
     return (
       e.dni?.toString().includes(texto) ||
-      // ✅ nombre_apellido es el campo correcto (no nombre + apellido separados)
       e.nombre_apellido?.toLowerCase().includes(texto)
     );
   });
@@ -52,7 +49,7 @@ export default function EstudiantesPage() {
 
         <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-gray-200">
           {loading ? (
-            <div className="flex items-center justify-center py-16 gap-3">
+            <div className="flex items-center justify-center gap-3 py-16">
               <svg className="h-5 w-5 animate-spin text-green-700" viewBox="0 0 24 24" fill="none">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
@@ -74,13 +71,13 @@ export default function EstudiantesPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-gray-100 bg-gray-50">
-                      <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 w-32">
+                      <th className="w-32 px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                         DNI
                       </th>
                       <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                         Nombre y apellido
                       </th>
-                      <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 hidden sm:table-cell">
+                      <th className="hidden px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 sm:table-cell">
                         Comisiones
                       </th>
                     </tr>
@@ -98,11 +95,10 @@ export default function EstudiantesPage() {
                           <td className="px-5 py-3.5 font-mono text-sm text-gray-600">
                             {est.dni}
                           </td>
-                          {/* ✅ nombre_apellido es el campo real del backend */}
                           <td className="px-5 py-3.5 font-medium text-gray-800">
                             {est.nombre_apellido}
                           </td>
-                          <td className="px-5 py-3.5 hidden sm:table-cell">
+                          <td className="hidden px-5 py-3.5 sm:table-cell">
                             <div className="flex flex-wrap gap-1">
                               {(est.comisiones ?? []).map((c) => (
                                 <span

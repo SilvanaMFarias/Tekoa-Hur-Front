@@ -92,14 +92,13 @@ export default function GeneradorQR() {
     documentTitle: `qr-${selectedAula?.nombreCompleto || aula}`,
   });
 
-  // ✅ FIX: descarga en alta resolución (1200×1200) para que sea legible
+  // Descarga en alta resolución (1200×1200)
   const handleDescargarQR = async () => {
     const svg = qrRef.current?.querySelector("svg");
     if (!svg) return;
 
-    // Tamaño del canvas — 1200px da buena resolución para lectores de imagen
-    const TAM = 1200;
-    const MARGEN = 60; // margen blanco alrededor del QR
+    const TAM    = 1200;
+    const MARGEN = 60;
 
     const svgString = new XMLSerializer().serializeToString(svg);
     const blob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
@@ -111,22 +110,15 @@ export default function GeneradorQR() {
       canvas.width  = TAM;
       canvas.height = TAM;
       const ctx     = canvas.getContext("2d");
-
-      // Fondo blanco
       ctx.fillStyle = "white";
       ctx.fillRect(0, 0, TAM, TAM);
-
-      // Dibujar QR centrado con margen
       ctx.drawImage(img, MARGEN, MARGEN, TAM - MARGEN * 2, TAM - MARGEN * 2);
-
-      // Descargar como PNG
-      const link      = document.createElement("a");
-      link.href       = canvas.toDataURL("image/png", 1.0); // calidad máxima
-      link.download   = `qr-${selectedAula?.nombreCompleto || aula}.png`;
+      const link    = document.createElement("a");
+      link.href     = canvas.toDataURL("image/png", 1.0);
+      link.download = `qr-${selectedAula?.nombreCompleto || aula}.png`;
       link.click();
       URL.revokeObjectURL(url);
     };
-
     img.src = url;
   };
 
@@ -167,6 +159,7 @@ export default function GeneradorQR() {
         </Box>
 
         <Button fullWidth variant="contained"
+          sx={{ bgcolor: "#1B5E20", "&:hover": { bgcolor: "#2E7D32" } }}
           onClick={handleGenerarQR} disabled={!edificio || !aula || generando}>
           {generando ? <CircularProgress size={22} color="inherit"/> : "Generar QR"}
         </Button>
@@ -174,7 +167,6 @@ export default function GeneradorQR() {
         {mostrarQR && urlQR && (
           <Box sx={{ mt: 4, display: "flex", flexDirection: "column", alignItems: "center" }}>
             <Paper ref={qrRef} elevation={2} sx={{ p: 2, borderRadius: 3, background: "white" }}>
-              {/* ✅ QR grande para mejor calidad al exportar */}
               <QRCode value={urlQR} size={300} level="H" />
             </Paper>
             <Box sx={{ mt: 2, textAlign: "center" }}>
@@ -182,13 +174,22 @@ export default function GeneradorQR() {
               <Typography variant="body2">Aula: <strong>{selectedAula?.nombreCompleto}</strong></Typography>
             </Box>
             <Box sx={{ mt: 3, width: "100%", display: "flex", gap: 2 }}>
-              <Button variant="contained" color="success" fullWidth onClick={handleDescargarQR}>Descargar</Button>
-              <Button variant="contained" color="inherit" fullWidth onClick={() => setOpenPrint(true)}>Imprimir</Button>
+              {/* ✅ Descarga y impresión en verde institucional */}
+              <Button variant="contained" fullWidth onClick={handleDescargarQR}
+                sx={{ bgcolor: "#1B5E20", "&:hover": { bgcolor: "#2E7D32" } }}>
+                Descargar
+              </Button>
+              <Button variant="outlined" fullWidth onClick={() => setOpenPrint(true)}
+                sx={{ borderColor: "#1B5E20", color: "#1B5E20", "&:hover": { borderColor: "#2E7D32", bgcolor: "#E8F5E9" } }}>
+                Imprimir
+              </Button>
             </Box>
           </Box>
         )}
 
-        <Button variant="outlined" color="error" fullWidth onClick={() => router.push("/")} sx={{ mt: 3 }}>
+        {/* ✅ Botón Cancelar: gris neutro en lugar de rojo — el rojo es para errores, no acciones secundarias */}
+        <Button variant="outlined" fullWidth onClick={() => router.push("/")}
+          sx={{ mt: 3, borderColor: "#D1D5DB", color: "#6B7280", "&:hover": { borderColor: "#9CA3AF", bgcolor: "#F9FAFB" } }}>
           Cancelar
         </Button>
       </Paper>
@@ -204,8 +205,14 @@ export default function GeneradorQR() {
           </Box>
         </DialogContent>
         <DialogActions sx={{ justifyContent: "center" }}>
-          <Button onClick={() => setOpenPrint(false)}>Cancelar</Button>
-          <Button variant="contained" onClick={handleImprimirQR}>Imprimir</Button>
+          <Button onClick={() => setOpenPrint(false)}
+            sx={{ color: "#6B7280" }}>
+            Cancelar
+          </Button>
+          <Button variant="contained" onClick={handleImprimirQR}
+            sx={{ bgcolor: "#1B5E20", "&:hover": { bgcolor: "#2E7D32" } }}>
+            Imprimir
+          </Button>
         </DialogActions>
       </Dialog>
     </>

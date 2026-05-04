@@ -3,30 +3,34 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import AsistenciaGrid from "@/components/AsistenciaGrid";
-import { BACK_URL, getAuthHeaders } from "@/config/api";
+import { BACK_URL, getAuthHeaders } from "@/config/api"; // ✅ igual que asistencia-docente
 
 export default function AsistenciaPage() {
   const router = useRouter();
-  const [tab, setTab] = useState("estudiantes"); // "estudiantes" | "docentes"
 
   return (
     <div className="flex flex-1 flex-col px-4 py-8 sm:px-6 sm:py-10">
-      <div className="mx-auto w-full max-w-6xl">
+      <div className="mx-auto w-full max-w-4xl">
 
-        {/* Encabezado + toggle de tabs */}
+        {/* Encabezado + tabs */}
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-800">Asistencias</h1>
             <p className="mt-1 text-sm text-gray-500">Historial de asistencia por comisión</p>
           </div>
 
+          {/* Toggle — "Docentes" redirige a /asistencia-docente donde está la grilla real */}
           <div className="flex rounded-xl border border-gray-200 bg-gray-100 p-1 self-start sm:self-auto">
-            <TabBtn active={tab === "estudiantes"} onClick={() => setTab("estudiantes")}>
+            {/* Tab activo: Estudiantes */}
+            <div className="flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-medium text-green-800 shadow-sm">
               🧑‍🎓 Estudiantes
-            </TabBtn>
-            <TabBtn active={tab === "docentes"} onClick={() => router.push("/asistencia-docente")}>
+            </div>
+            <button
+              onClick={() => router.push("/asistencia-docente")}
+              className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-gray-500 transition hover:text-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
+            >
               👨‍🏫 Docentes
-            </TabBtn>
+            </button>
           </div>
         </div>
 
@@ -36,38 +40,26 @@ export default function AsistenciaPage() {
   );
 }
 
-function TabBtn({ active, onClick, children }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 ${
-        active ? "bg-white text-green-800 shadow-sm" : "text-gray-500 hover:text-gray-700"
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
-
-/* ─── Tab Estudiantes con AsistenciaGrid ──────────────────────── */
+/* ─── Tab Estudiantes con AsistenciaGrid real ─────────────────── */
 function TabEstudiantes() {
+  // ✅ Usa BACK_URL + getAuthHeaders igual que el resto del proyecto
   const headers = useMemo(() => ({ Accept: "application/json", ...getAuthHeaders() }), []);
 
-  const [materias,    setMaterias]    = useState([]);
-  const [comisiones,  setComisiones]  = useState([]);
-  const [materiaId,   setMateriaId]   = useState("");
-  const [comisionId,  setComisionId]  = useState("");
-  const [loadingCat,  setLoadingCat]  = useState(true);
+  const [materias,   setMaterias]   = useState([]);
+  const [comisiones, setComisiones] = useState([]);
+  const [materiaId,  setMateriaId]  = useState("");
+  const [comisionId, setComisionId] = useState("");
+  const [loadingCat, setLoadingCat] = useState(true);
+  const [error,      setError]      = useState("");
 
   const [fechas,      setFechas]      = useState([]);
   const [alumnos,     setAlumnos]     = useState([]);
   const [asistencias, setAsistencias] = useState([]);
   const [loading,     setLoading]     = useState(false);
-  const [error,       setError]       = useState("");
 
   // Cargar materias y comisiones al montar
   useEffect(() => {
-    if (!BACK_URL) { setError("Falta NEXT_PUBLIC_BACK_URL."); return; }
+    if (!BACK_URL) { setError("Falta NEXT_PUBLIC_BACK_URL en .env.local"); return; }
     Promise.all([
       fetch(`${BACK_URL}/api/materias`,   { headers }).then(r => r.json()),
       fetch(`${BACK_URL}/api/comisiones`, { headers }).then(r => r.json()),
@@ -80,7 +72,7 @@ function TabEstudiantes() {
       .finally(() => setLoadingCat(false));
   }, [headers]);
 
-  // Comisiones filtradas por materia seleccionada
+  // Comisiones filtradas por materia
   const comisionesFiltradas = useMemo(() =>
     materiaId ? comisiones.filter(c => c.materiaId === materiaId) : [],
     [materiaId, comisiones]
@@ -88,7 +80,6 @@ function TabEstudiantes() {
 
   const comisionInfo = comisiones.find(c => c.comisionId === comisionId);
 
-  // Cuando cambia la materia resetear comisión
   function handleMateriaChange(e) {
     setMateriaId(e.target.value);
     setComisionId("");
@@ -97,7 +88,7 @@ function TabEstudiantes() {
 
   // Cargar asistencias cuando se elige comisión
   useEffect(() => {
-    if (!comisionId) return;
+    if (!comisionId || !BACK_URL) return;
     setLoading(true); setError("");
     (async () => {
       try {
@@ -108,25 +99,21 @@ function TabEstudiantes() {
         if (!resAsis.ok) throw new Error("Error cargando asistencias");
 
         const registros = await resAsis.json();
-        // comision ya la tenemos en comisionInfo, pero si necesitamos estudiantes:
         const comData   = resCom.ok ? await resCom.json() : comisionInfo;
 
-        // ─ Estudiantes matriculados en la comisión ─
-        // La API de comisiones ya trae comision.estudiantes
+        // Estudiantes matriculados en la comisión
         const estudiantesMatric = comData?.estudiantes ?? [];
-
         const alumnosFormateados = estudiantesMatric.map(e => ({
           id:      e.dni,
           dni:     e.dni,
-          // ✅ nombre_apellido es el campo real del backend
-          apellido: e.nombre_apellido,
+          apellido: e.nombre_apellido, // ✅ campo real del backend
         }));
 
-        // ─ Fechas únicas de asistencia ─
+        // Fechas únicas
         const soloEstudiantes = registros.filter(r => r.tipoUsuario === "ESTUDIANTE");
         const fechasOrd = [...new Set(soloEstudiantes.map(r => r.fecha).filter(Boolean))].sort();
 
-        // ─ Set de presencias ─
+        // Presencias
         const asisFormateadas = soloEstudiantes
           .filter(r => r.estado === "PRESENTE")
           .map(r => ({ alumnoId: String(r.usuarioId), fecha: r.fecha }));
@@ -159,8 +146,9 @@ function TabEstudiantes() {
               className="rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-green-600 focus:outline-none focus:ring-2 focus:ring-green-200 disabled:opacity-50"
             >
               <option value="">{loadingCat ? "Cargando..." : "Seleccionar materia"}</option>
-              {/* ✅ materiaId */}
-              {materias.map(m => <option key={m.materiaId} value={m.materiaId}>{m.nombre}</option>)}
+              {materias.map(m => (
+                <option key={m.materiaId} value={m.materiaId}>{m.nombre}</option>
+              ))}
             </select>
           </div>
 
@@ -178,7 +166,6 @@ function TabEstudiantes() {
                   : comisionesFiltradas.length === 0 ? "Sin comisiones para esta materia"
                   : "Seleccionar comisión"}
               </option>
-              {/* ✅ comisionId + cod_comision */}
               {comisionesFiltradas.map(c => (
                 <option key={c.comisionId} value={c.comisionId}>{c.cod_comision}</option>
               ))}
@@ -187,7 +174,7 @@ function TabEstudiantes() {
         </div>
       </div>
 
-      {/* Info comisión seleccionada */}
+      {/* Info de la comisión seleccionada */}
       {comisionInfo && (
         <div className="flex overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-gray-200">
           <div className="w-1.5 shrink-0 bg-green-700" />
@@ -204,13 +191,14 @@ function TabEstudiantes() {
         <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
       )}
 
-      {/* Estados vacíos */}
+      {/* Estado vacío */}
       {!comisionId && !loading && (
         <div className="rounded-2xl bg-white px-5 py-10 text-center text-sm text-gray-400 shadow-sm ring-1 ring-gray-200">
           Seleccioná una materia y una comisión para ver la grilla.
         </div>
       )}
 
+      {/* Spinner */}
       {comisionId && loading && (
         <div className="flex items-center justify-center gap-3 rounded-2xl bg-white py-12 shadow-sm ring-1 ring-gray-200">
           <svg className="h-5 w-5 animate-spin text-green-700" viewBox="0 0 24 24" fill="none">
@@ -221,7 +209,7 @@ function TabEstudiantes() {
         </div>
       )}
 
-      {/* ✅ AsistenciaGrid — muestra P verde / A rojo igual que asistencia-docente */}
+      {/* ✅ AsistenciaGrid real — P verde / A rojo por fecha */}
       {comisionId && !loading && !error && (
         <AsistenciaGrid
           titulo={`Asistencia — ${comisionInfo?.cod_comision ?? ""}`}

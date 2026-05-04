@@ -4,11 +4,11 @@ import GeneradorQR from "@/components/GeneradorQR";
 
 /**
  * Página Generar QR del Aula.
- * Usa el componente GeneradorQR que incluye:
- *  - Selección de edificio/aula desde la API real
+ * Delega toda la lógica al componente GeneradorQR que incluye:
+ *  - Selección edificio/aula desde la API real
  *  - Generación del token via POST /api/qr/generar
- *  - Visualización del QR con react-qr-code
- *  - Descarga en alta resolución (1200x1200 PNG)
+ *  - QR con react-qr-code (alta resolución 300px, nivel H)
+ *  - Descarga en PNG 1200×1200
  *  - Vista previa de impresión
  */
 export default function GenerarQRPage() {
