@@ -1,22 +1,26 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { getAuthHeaders } from "@/config/api";
+import ProtectedRoute from "@/components/ProtectedRoute";
 
-// ✅ Usa NEXT_PUBLIC_BACK_URL igual que el resto del proyecto (GeneradorQR, asistencia-docente, etc.)
 const API_URL = process.env.NEXT_PUBLIC_BACK_URL || "http://localhost:3001";
 
-/**
- * Flujo correcto con el backend real (routes/importar.js):
- *  POST /api/importar/preview  — campo: "archivo"  → muestra resumen
- *  POST /api/importar/confirmar — campo: "archivo" → importa a la DB
- */
 export default function ImportarPage() {
+  return (
+    <ProtectedRoute roles={["administrador"]}>
+      <ImportarContenido />
+    </ProtectedRoute>
+  );
+}
+
+function ImportarContenido() {
   const inputRef = useRef(null);
   const [archivo, setArchivo] = useState(null);
   const [dragging, setDragging] = useState(false);
-  const [estado, setEstado] = useState("idle"); // idle | previewing | preview_ok | importing | success | error
-  const [preview, setPreview] = useState(null);
-  const [mensaje, setMensaje] = useState("");
+  const [estado,   setEstado]   = useState("idle");
+  const [preview,  setPreview]  = useState(null);
+  const [mensaje,  setMensaje]  = useState("");
 
   function procesarArchivo(file) {
     if (!file) return;
@@ -44,13 +48,18 @@ export default function ImportarPage() {
     setMensaje("");
     try {
       const formData = new FormData();
-      formData.append("archivo", archivo); // ✅ "archivo" — igual que en routes/importar.js
+      formData.append("archivo", archivo);
+
+      // ✅ getAuthHeaders() devuelve el JWT Bearer — requerido porque /api/importar está protegido
+      // Nota: NO pasar Content-Type con FormData, el browser lo setea automáticamente con el boundary
+      const { Authorization } = getAuthHeaders();
       const res = await fetch(`${API_URL}/api/importar/preview`, {
         method: "POST",
+        headers: { Authorization },
         body: formData,
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data?.error ?? "Error al previsualizar.");
+      if (!res.ok) throw new Error(data?.error ?? data?.message ?? "Error al previsualizar.");
       setPreview(data.resumen);
       setEstado("preview_ok");
     } catch (err) {
@@ -66,21 +75,25 @@ export default function ImportarPage() {
     setMensaje("");
     try {
       const formData = new FormData();
-      formData.append("archivo", archivo); // ✅ "archivo"
+      formData.append("archivo", archivo);
+
+      const { Authorization } = getAuthHeaders();
       const res = await fetch(`${API_URL}/api/importar/confirmar`, {
         method: "POST",
+        headers: { Authorization },
         body: formData,
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data?.error ?? "Error al importar.");
+      if (!res.ok) throw new Error(data?.error ?? data?.message ?? "Error al importar.");
       const r = data.resultados ?? {};
       setEstado("success");
       setMensaje(
-        `Importación completada — ` +
+        `✓ Importación completada — ` +
         `Edificios: ${r.edificios ?? 0}, Aulas: ${r.aulas ?? 0}, ` +
         `Profesores: ${r.profesores ?? 0}, Materias: ${r.materias ?? 0}, ` +
         `Comisiones: ${r.comisiones ?? 0}, Horarios: ${r.horarios ?? 0}, ` +
-        `Estudiantes: ${r.estudiantes ?? 0}, Matrículas: ${r.matriculas ?? 0}.`
+        `Estudiantes: ${r.estudiantes ?? 0}, Matrículas: ${r.matriculas ?? 0}` +
+        (r.usuariosCreados ? `, Usuarios creados: ${r.usuariosCreados}` : "") + "."
       );
       setArchivo(null);
       setPreview(null);
@@ -119,9 +132,9 @@ export default function ImportarPage() {
             onDrop={handleDrop}
             onClick={() => !preview && inputRef.current?.click()}
             className={`mb-5 flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed px-6 py-8 transition select-none ${
-              dragging ? "border-green-500 bg-green-50"
+              dragging  ? "border-green-500 bg-green-50"
               : archivo ? "border-green-400 bg-green-50"
-              : "border-gray-300 bg-gray-50 hover:border-green-400 hover:bg-green-50"
+              :           "border-gray-300 bg-gray-50 hover:border-green-400 hover:bg-green-50"
             } ${preview ? "cursor-default" : ""}`}
             role="button"
             tabIndex={0}
@@ -155,8 +168,8 @@ export default function ImportarPage() {
 
           {/* Resumen de preview */}
           {preview && (
-            <div className="mb-5 rounded-xl border border-blue-200 bg-blue-50 p-4">
-              <p className="mb-3 text-sm font-semibold text-blue-800">Vista previa — lo que se va a importar:</p>
+            <div className="mb-5 rounded-xl border border-green-200 bg-green-50 p-4">
+              <p className="mb-3 text-sm font-semibold text-green-800">Vista previa — lo que se va a importar:</p>
               <div className="grid grid-cols-3 gap-2">
                 {[
                   { label: "Comisiones",  valor: preview.comisiones },
@@ -166,8 +179,8 @@ export default function ImportarPage() {
                   { label: "Edificios",   valor: preview.edificios?.length ?? 0 },
                   { label: "Aulas",       valor: preview.aulas },
                 ].map(({ label, valor }) => (
-                  <div key={label} className="rounded-lg bg-white px-3 py-2 text-center ring-1 ring-blue-100">
-                    <p className="text-lg font-bold text-blue-700">{valor}</p>
+                  <div key={label} className="rounded-lg bg-white px-3 py-2 text-center ring-1 ring-green-100">
+                    <p className="text-lg font-bold text-green-700">{valor}</p>
                     <p className="text-xs text-gray-500">{label}</p>
                   </div>
                 ))}
@@ -180,7 +193,7 @@ export default function ImportarPage() {
             <p role="alert" className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{mensaje}</p>
           )}
           {estado === "success" && mensaje && (
-            <p role="status" className="mb-4 rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700">✓ {mensaje}</p>
+            <p role="status" className="mb-4 rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700">{mensaje}</p>
           )}
 
           {/* Botones */}
@@ -189,7 +202,7 @@ export default function ImportarPage() {
               <button
                 onClick={handlePreview}
                 disabled={!archivo || estado === "previewing"}
-                className="flex-1 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex-1 rounded-xl bg-green-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-green-800 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {estado === "previewing" ? "Leyendo archivo..." : "Previsualizar"}
               </button>

@@ -1,5 +1,6 @@
 "use client";
 
+import ProtectedRoute from "@/components/ProtectedRoute";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation"; 
 // @ts-ignore
@@ -7,6 +8,14 @@ import AsistenciaGrid from "@/components/AsistenciaGrid";
 import { BACK_URL, getAuthHeaders } from "@/config/api";
 
 export default function AsistenciaDocentePage() {
+  return (
+    <ProtectedRoute roles={["docente", "administrador"]}>
+      <AsistenciaDocenteContenido />
+    </ProtectedRoute>
+  );
+}
+
+function AsistenciaDocenteContenido() {
   const router = useRouter();
 
   const [profesores,           setProfesores]           = useState<any[]>([]);
