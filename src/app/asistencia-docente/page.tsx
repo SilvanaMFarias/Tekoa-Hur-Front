@@ -188,21 +188,13 @@ function AsistenciaDocenteContenido() {
         const registros: any[]   = await resAsis.json();
         const profesoresR = resProf.ok ? await resProf.json() : [];
 
-<<<<<<< HEAD
-        const profMap: Record<string, any> = {};
-=======
         const profMap: Record<string, {nombre: string, dni: string}> = {};
->>>>>>> dc349ca (feat: mejoras en app)
         for (const p of profesoresR) {
           if (p.dni) profMap[String(p.dni)] = { nombre: p.nombre_apellido, dni: p.dni };
         }
 
         const soloDocentes = registros.filter((r: any) => r.tipoUsuario === "PROFESOR");
-<<<<<<< HEAD
-        const fechasOrd = [...new Set(soloDocentes.map((r: any) => r.fecha).filter(Boolean))].sort();
-=======
         const fechasOrd    = [...new Set<string>(soloDocentes.map((r: any) => r.fecha).filter(Boolean))].sort();
->>>>>>> dc349ca (feat: mejoras en app)
 
         const docentesMap = new Map<string, {id: string, apellido: string}>();
         for (const r of soloDocentes) {

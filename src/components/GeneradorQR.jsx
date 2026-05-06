@@ -7,37 +7,30 @@ import { useReactToPrint } from "react-to-print";
 import { BACK_URL, getAuthHeaders } from "@/config/api";
 import { useAuth } from "@/context/AuthContext";
 
-/**
- * GeneradorQR — Sin MUI, 100% Tailwind.
- *
- * Para el ROL DOCENTE:
- *   - Carga las comisiones que le pertenecen (filtra por su profesorId)
- *   - Muestra el aula de cada comisión preseleccionada
- *   - No ve aulas ni edificios ajenos
- *
- * Para ADMINISTRADOR:
- *   - Puede elegir cualquier edificio y aula (comportamiento original)
- */
 export default function GeneradorQR() {
-  const router        = useRouter();
-  const { usuario }   = useAuth();
-  const printRef      = useRef(null);
-  const qrRef         = useRef(null);
-  const isDocente     = usuario?.rol === "docente";
+  const router      = useRouter();
+  const { usuario } = useAuth();
+  const printRef    = useRef(null);
+  const qrRef       = useRef(null);
+  const isDocente   = usuario?.rol === "docente";
 
-  // ─── Estado compartido ───────────────────────────────────────
-  const [token,     setToken]     = useState("");
-  const [mostrarQR, setMostrarQR] = useState(false);
-  const [openPrint, setOpenPrint] = useState(false);
-  const [generando, setGenerando] = useState(false);
-  const [error,     setError]     = useState("");
+  // Estado compartido
+  const [token,       setToken]       = useState("");
+  const [mostrarQR,   setMostrarQR]   = useState(false);
+  const [openPrint,   setOpenPrint]   = useState(false);
+  const [generando,   setGenerando]   = useState(false);
+  const [error,       setError]       = useState("");
+  const [expiraInfo,  setExpiraInfo]  = useState(null); // { minutos, expiraEn }
 
-  // ─── Estado DOCENTE ──────────────────────────────────────────
-  const [comisionesDocente, setComisionesDocente] = useState([]);  // [{comisionId, cod, aulaId, aulaName, edificioNombre}]
-  const [comisionElegida,   setComisionElegida]   = useState("");  // comisionId elegida
+  // Duración configurable por el docente (en minutos)
+  const [duracion, setDuracion] = useState(120);
+
+  // Estado DOCENTE
+  const [comisionesDocente, setComisionesDocente] = useState([]);
+  const [comisionElegida,   setComisionElegida]   = useState("");
   const [loadingCom,        setLoadingCom]        = useState(false);
 
-  // ─── Estado ADMIN ────────────────────────────────────────────
+  // Estado ADMIN
   const [edificios,        setEdificios]        = useState([]);
   const [aulas,            setAulas]            = useState([]);
   const [aulasCache,       setAulasCache]       = useState({});
@@ -46,55 +39,71 @@ export default function GeneradorQR() {
   const [loadingEdificios, setLoadingEdificios] = useState(false);
   const [loadingAulas,     setLoadingAulas]     = useState(false);
 
-  // ─── Cargar datos según rol ──────────────────────────────────
+  // Cargar datos según rol
   useEffect(() => {
     if (!usuario) return;
 
     if (isDocente) {
-      // Para el docente: cargar sus comisiones con datos de aula
       setLoadingCom(true);
       (async () => {
         try {
           const headers = getAuthHeaders();
-          // Obtener comisiones del docente usando su referenciaId (dni del profesor)
-          const resProfesores = await fetch(`${BACK_URL}/api/profesores`, { headers });
-          const profesores    = await resProfesores.json();
-          const profesor      = profesores.find(p => p.dni === usuario.referenciaId || p.dni === usuario.dni);
-
+          const resProfesores   = await fetch(`${BACK_URL}/api/profesores`, { headers });
+          const profesores      = await resProfesores.json();
+          const profesor        = profesores.find(p => p.dni === usuario.referenciaId || p.dni === usuario.dni);
           if (!profesor) { setError("No encontramos tu perfil de docente."); return; }
 
-          const resComisiones = await fetch(`${BACK_URL}/api/comisiones`, { headers });
+          const resComisiones   = await fetch(`${BACK_URL}/api/comisiones`, { headers });
           const todasComisiones = await resComisiones.json();
-
-          const misComisiones = todasComisiones.filter(
+          const misComisiones   = todasComisiones.filter(
             c => String(c.profesorId) === String(profesor.profesorId)
           );
 
-          // Para cada comisión, obtener los datos de aula del horario
-          const comisionesCon = misComisiones.map(c => ({
-            comisionId:    c.comisionId,
-            cod:           c.cod_comision,
-            aulaId:        c.horarios?.[0]?.aula?.aulaId ?? c.horarios?.[0]?.aulaId ?? null,
-            aulaName:      c.horarios?.[0]?.aula
-                             ? `${c.horarios[0].aula.sector}-${c.horarios[0].aula.numero}`
-                             : "(sin aula asignada)",
-            edificioId:    c.horarios?.[0]?.aula?.edificioId ?? null,
-            edificioNombre:c.horarios?.[0]?.aula?.edificio?.nombre ?? "",
-            materia:       c.materia?.nombre ?? c.cod_comision,
+          // El endpoint de comisiones devuelve aulaId en el horario pero NO el objeto aula completo.
+          // Hay que buscar los datos del aula por separado para obtener sector, numero y edificioId.
+          const aulaIds = [...new Set(
+            misComisiones
+              .flatMap(c => c.horarios ?? [])
+              .map(h => h.aulaId)
+              .filter(Boolean)
+          )];
+
+          // Cargar todas las aulas necesarias en paralelo
+          const aulasMap = {};
+          await Promise.all(aulaIds.map(async (aulaId) => {
+            try {
+              const r = await fetch(`${BACK_URL}/api/aulas/${aulaId}`, { headers });
+              if (r.ok) {
+                const a = await r.json();
+                aulasMap[aulaId] = a;
+              }
+            } catch {}
           }));
 
-          setComisionesDocente(comisionesCon);
+          setComisionesDocente(misComisiones.map(c => {
+            const aulaId  = c.horarios?.[0]?.aulaId ?? null;
+            const aulaObj = aulaId ? aulasMap[aulaId] : null;
+            return {
+              comisionId:     c.comisionId,
+              cod:            c.cod_comision,
+              materia:        c.materia?.nombre ?? c.cod_comision,
+              docenteNombre:  profesor.nombre_apellido,
+              aulaId:         aulaId,
+              aulaName:       aulaObj
+                                ? `${aulaObj.sector}-${aulaObj.numero}`
+                                : aulaId ? "(cargando...)" : "(sin aula asignada)",
+              edificioId:     aulaObj?.edificioId ?? null,
+              edificioNombre: aulaObj?.edificio?.nombre ?? "",
+            };
+          }));
         } catch { setError("Error cargando tus comisiones."); }
         finally   { setLoadingCom(false); }
       })();
-
     } else {
-      // Para admin: cargar edificios
       setLoadingEdificios(true);
       (async () => {
         try {
           const res  = await fetch(`${BACK_URL}/api/edificios`, { headers: getAuthHeaders() });
-          if (!res.ok) throw new Error();
           const data = await res.json();
           setEdificios(data.map(e => ({ ...e, edificioId: String(e.edificioId) })));
         } catch { setError("No se pudieron cargar los edificios."); }
@@ -103,10 +112,10 @@ export default function GeneradorQR() {
     }
   }, [usuario, isDocente]);
 
-  // Cargar aulas cuando cambia el edificio (admin)
+  // Cargar aulas (admin)
   useEffect(() => {
     if (isDocente || !edificio) { setAulas([]); return; }
-    if (aulasCache[edificio]) { setAulas(aulasCache[edificio]); return; }
+    if (aulasCache[edificio])   { setAulas(aulasCache[edificio]); return; }
     (async () => {
       setLoadingAulas(true);
       try {
@@ -120,12 +129,9 @@ export default function GeneradorQR() {
     })();
   }, [edificio, isDocente]);
 
-  // ─── Datos derivados ─────────────────────────────────────────
-  const comisionInfo  = comisionesDocente.find(c => c.comisionId === comisionElegida);
-  const selectedEdif  = edificios.find(e => e.edificioId === edificio);
-  const selectedAula  = aulas.find(a => a.aulaId === aula);
-
-  // aulaId efectiva (docente usa la de la comisión, admin usa el select)
+  const comisionInfo      = comisionesDocente.find(c => c.comisionId === comisionElegida);
+  const selectedEdif      = edificios.find(e => e.edificioId === edificio);
+  const selectedAula      = aulas.find(a => a.aulaId === aula);
   const aulaIdEfectiva    = isDocente ? comisionInfo?.aulaId    : aula;
   const edificioIdEfectivo = isDocente ? comisionInfo?.edificioId : edificio;
 
@@ -138,19 +144,32 @@ export default function GeneradorQR() {
     return `${process.env.NEXT_PUBLIC_FRONT_URL}/registrar-asistencia?rtoken=${token}&aulaId=${aulaIdEfectiva}&edificioId=${edificioIdEfectivo}`;
   }, [token, aulaIdEfectiva, edificioIdEfectivo]);
 
-  // ─── Acciones ────────────────────────────────────────────────
+  // Info para mostrar en el QR impreso
+  const infoQR = {
+    materia:   isDocente ? (comisionInfo?.materia ?? "")        : "",
+    comision:  isDocente ? (comisionInfo?.cod ?? "")            : (selectedAula?.nombreCompleto ?? ""),
+    docente:   isDocente ? (comisionInfo?.docenteNombre ?? "")  : "",
+    edificio:  isDocente ? (comisionInfo?.edificioNombre ?? "")  : (selectedEdif?.nombre ?? ""),
+    aula:      isDocente ? (comisionInfo?.aulaName ?? "")        : (selectedAula?.nombreCompleto ?? ""),
+  };
+
   const handleGenerarQR = async () => {
     if (!puedeGenerar) return;
     setError(""); setGenerando(true);
     try {
       const res  = await fetch(`${BACK_URL}/api/qr/generar`, {
-        method: "POST",
+        method:  "POST",
         headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
-        body: JSON.stringify({ aulaId: aulaIdEfectiva }),
+        body:    JSON.stringify({
+          aulaId:          aulaIdEfectiva,
+          comisionId:      isDocente ? comisionElegida : null,
+          duracionMinutos: duracion,
+        }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.message || "Error al generar el QR"); return; }
       setToken(data.rtoken);
+      setExpiraInfo({ minutos: data.minutos, expiraEn: data.expiraEn });
       setMostrarQR(true);
     } catch { setError("No se pudo conectar con el servidor."); }
     finally   { setGenerando(false); }
@@ -158,7 +177,7 @@ export default function GeneradorQR() {
 
   const handleImprimirQR = useReactToPrint({
     contentRef: printRef,
-    documentTitle: `qr-aula`,
+    documentTitle: `qr-${infoQR.comision || infoQR.aula}`,
   });
 
   const handleDescargarQR = async () => {
@@ -177,20 +196,12 @@ export default function GeneradorQR() {
       ctx.drawImage(img, MARGEN, MARGEN, TAM - MARGEN * 2, TAM - MARGEN * 2);
       const link = document.createElement("a");
       link.href = canvas.toDataURL("image/png", 1.0);
-      link.download = `qr-aula-${aulaIdEfectiva}.png`;
+      link.download = `qr-${infoQR.comision || infoQR.aula}.png`;
       link.click(); URL.revokeObjectURL(url);
     };
     img.src = url;
   };
 
-  const nombreAulaDisplay = isDocente
-    ? (comisionInfo?.aulaName ?? "")
-    : (selectedAula?.nombreCompleto ?? "");
-  const nombreEdifDisplay = isDocente
-    ? (comisionInfo?.edificioNombre ?? "")
-    : (selectedEdif?.nombre ?? "");
-
-  // ─── Render ──────────────────────────────────────────────────
   return (
     <>
       <div className="w-full max-w-lg mx-auto">
@@ -198,7 +209,7 @@ export default function GeneradorQR() {
           <h1 className="text-2xl font-bold text-gray-800">Generar QR del Aula</h1>
           <p className="mt-1 text-sm text-gray-500">
             {isDocente
-              ? "Seleccioná tu comisión para generar el código QR del aula."
+              ? "Seleccioná tu comisión y configurá la duración del QR."
               : "Seleccioná el edificio y el aula para generar el código QR."}
           </p>
         </div>
@@ -212,17 +223,17 @@ export default function GeneradorQR() {
             </div>
           )}
 
-          {/* ── MODO DOCENTE ── */}
+          {/* MODO DOCENTE */}
           {isDocente && (
             <div className="mb-5 flex flex-col gap-1.5">
               <label className="text-sm font-medium text-gray-700">Mi comisión</label>
               <select
                 value={comisionElegida}
                 disabled={loadingCom}
-                onChange={e => { setComisionElegida(e.target.value); setMostrarQR(false); setToken(""); }}
+                onChange={e => { setComisionElegida(e.target.value); setMostrarQR(false); setToken(""); setExpiraInfo(null); }}
                 className="rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-green-600 focus:outline-none focus:ring-2 focus:ring-green-200 disabled:opacity-50"
               >
-                <option value="">{loadingCom ? "Cargando tus comisiones..." : "Seleccioná una comisión"}</option>
+                <option value="">{loadingCom ? "Cargando..." : "Seleccioná una comisión"}</option>
                 {comisionesDocente.map(c => (
                   <option key={c.comisionId} value={c.comisionId}>
                     {c.cod} — {c.materia} ({c.aulaName})
@@ -242,7 +253,7 @@ export default function GeneradorQR() {
             </div>
           )}
 
-          {/* ── MODO ADMIN ── */}
+          {/* MODO ADMIN */}
           {!isDocente && (
             <>
               <div className="mb-4 flex flex-col gap-1.5">
@@ -275,6 +286,42 @@ export default function GeneradorQR() {
             </>
           )}
 
+          {/* Campo duración — visible siempre */}
+          <div className="mb-5 flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-gray-700">
+              Duración del QR <span className="text-gray-400 font-normal">(en minutos)</span>
+            </label>
+            <div className="flex items-center gap-3">
+              <input
+                type="number"
+                min={5}
+                max={480}
+                value={duracion}
+                onChange={e => { setDuracion(Number(e.target.value)); setMostrarQR(false); setToken(""); }}
+                className="w-32 rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-green-600 focus:outline-none focus:ring-2 focus:ring-green-200"
+              />
+              <div className="flex gap-2">
+                {[30, 60, 90, 120].map(m => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => { setDuracion(m); setMostrarQR(false); setToken(""); }}
+                    className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                      duracion === m
+                        ? "bg-green-700 text-white"
+                        : "border border-gray-300 text-gray-500 hover:bg-gray-50"
+                    }`}
+                  >
+                    {m}m
+                  </button>
+                ))}
+              </div>
+            </div>
+            <p className="text-xs text-gray-400">
+              El QR expirará a los {duracion} minutos de generado.
+            </p>
+          </div>
+
           {/* Botón generar */}
           <button
             onClick={handleGenerarQR}
@@ -295,15 +342,33 @@ export default function GeneradorQR() {
           {/* QR generado */}
           {mostrarQR && urlQR && (
             <div className="mt-6 flex flex-col items-center gap-4">
-              {/* Imagen del QR */}
-              <div ref={qrRef} className="rounded-2xl bg-white p-4 shadow-md ring-1 ring-gray-200">
-                <QRCode value={urlQR} size={240} level="H" />
-              </div>
 
-              {/* Info del aula */}
-              <div className="text-center text-sm text-gray-600">
-                {nombreEdifDisplay && <p>Edificio: <strong>{nombreEdifDisplay}</strong></p>}
-                {nombreAulaDisplay && <p>Aula: <strong>{nombreAulaDisplay}</strong></p>}
+              {/* Info de expiración */}
+              {expiraInfo && (
+                <div className="w-full rounded-xl bg-amber-50 border border-amber-200 px-4 py-2.5 text-sm text-amber-800 flex items-center gap-2">
+                  <span>⏱</span>
+                  <span>
+                    Válido por <strong>{expiraInfo.minutos} minutos</strong> · Expira a las{" "}
+                    <strong>{new Date(expiraInfo.expiraEn).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}</strong>
+                  </span>
+                </div>
+              )}
+
+              {/* QR + info identificatoria */}
+              <div ref={qrRef} className="rounded-2xl bg-white p-5 shadow-md ring-1 ring-gray-200 flex flex-col items-center gap-3 w-full max-w-xs">
+                <QRCode value={urlQR} size={220} level="H" />
+                <div className="text-center text-sm text-gray-700 w-full border-t border-gray-100 pt-3">
+                  {infoQR.materia   && <p className="font-bold text-base text-gray-900">{infoQR.materia}</p>}
+                  {infoQR.comision  && <p className="text-xs text-gray-500 mt-0.5">{infoQR.comision}</p>}
+                  {infoQR.docente   && <p className="text-sm font-medium text-gray-700 mt-1">👨‍🏫 {infoQR.docente}</p>}
+                  {infoQR.edificio  && <p className="text-xs text-gray-400 mt-1">🏢 {infoQR.edificio}</p>}
+                  {infoQR.aula && !isDocente && <p className="text-xs text-gray-400">🚪 {infoQR.aula}</p>}
+                  {expiraInfo       && (
+                    <p className="text-xs text-amber-600 mt-1">
+                      ⏱ Válido {expiraInfo.minutos} min
+                    </p>
+                  )}
+                </div>
               </div>
 
               {/* Acciones */}
@@ -324,7 +389,6 @@ export default function GeneradorQR() {
             </div>
           )}
 
-          {/* Cancelar */}
           <button
             onClick={() => router.push("/")}
             className="mt-4 w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-600 transition hover:bg-gray-50"
@@ -340,10 +404,14 @@ export default function GeneradorQR() {
           <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
             <h2 className="mb-4 text-center text-lg font-bold text-gray-800">Vista previa de impresión</h2>
             <div ref={printRef} className="flex flex-col items-center gap-3 p-4 text-center">
-              <p className="text-lg font-bold">QR de aula</p>
-              {nombreEdifDisplay && <p className="text-sm text-gray-600">Edificio: {nombreEdifDisplay}</p>}
-              {nombreAulaDisplay && <p className="text-sm text-gray-600">Aula: {nombreAulaDisplay}</p>}
+              {infoQR.materia  && <p className="text-xl font-bold text-gray-900">{infoQR.materia}</p>}
+              {infoQR.comision && <p className="text-sm text-gray-500">{infoQR.comision}</p>}
+              {infoQR.docente  && <p className="text-sm font-medium text-gray-700">👨‍🏫 {infoQR.docente}</p>}
+              {infoQR.edificio && <p className="text-xs text-gray-400">🏢 {infoQR.edificio} {infoQR.aula && `· 🚪 ${infoQR.aula}`}</p>}
               <QRCode value={urlQR || "sin-token"} size={220} level="H" />
+              {expiraInfo && (
+                <p className="text-xs text-amber-600">⏱ Válido por {expiraInfo.minutos} minutos</p>
+              )}
             </div>
             <div className="flex gap-3 mt-4">
               <button onClick={() => setOpenPrint(false)}
