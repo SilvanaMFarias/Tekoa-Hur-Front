@@ -21,17 +21,6 @@ function descargarExcel({ titulo, docentes, fechas, asistencias }) {
   const encabezados = ["Docente", ...fechas].join(";");
   const asisSet = new Set(asistencias.map(a => `${a.alumnoId}-${a.fecha}`));
 
-<<<<<<< HEAD
-  const [profesores,           setProfesores]           = useState<any[]>([]);
-  const [comisiones,           setComisiones]           = useState<any[]>([]);
-  const [profesorSeleccionado, setProfesorSeleccionado] = useState("");
-  const [comisionSeleccionada, setComisionSeleccionada] = useState("");
-  const [infoComision,         setInfoComision]         = useState<any>(null);
-
-  const [fechas,      setFechas]      = useState<any[]>([]);
-  const [docentes,    setDocentes]    = useState<any[]>([]);
-  const [asistencias, setAsistencias] = useState<any[]>([]);
-=======
   const filas = [...docentes]
     .sort((a, b) => a.apellido.localeCompare(b.apellido))
     .map(doc => {
@@ -72,24 +61,10 @@ function AsistenciaDocenteContenido() {
   const [fechas,      setFechas]      = useState([]);
   const [docentes,    setDocentes]    = useState([]);
   const [asistencias, setAsistencias] = useState([]);
->>>>>>> dc349ca (feat: mejoras en app)
   const [loading,     setLoading]     = useState(false);
   const [infoComision, setInfoComision] = useState(null);
 
-<<<<<<< HEAD
-  const headers: HeadersInit = useMemo(() => {
-  const auth = getAuthHeaders();
-
-  return {
-    Accept: "application/json",
-    ...(auth?.Authorization && { Authorization: auth.Authorization }),
-  };
-}, []);
-
-  // Cargar catálogo inicial
-=======
   // ── Cargar catálogo ──────────────────────────────────────────
->>>>>>> dc349ca (feat: mejoras en app)
   useEffect(() => {
     if (!BACK_URL) { setError("Falta NEXT_PUBLIC_BACK_URL."); return; }
     (async () => {
@@ -105,17 +80,6 @@ function AsistenciaDocenteContenido() {
         const profList = await resProf.json();
         const comList  = await resCom.json();
 
-<<<<<<< HEAD
-        setProfesores(dataProf.map((p: any) => ({
-          id:     String(p.profesorId ?? p.dni),
-          dni:    p.dni,
-          nombre: p.nombre_apellido,
-        })));
-
-        setComisiones(dataCom.map((c: any) => ({
-          id:         String(c.comisionId ?? c.id),
-          nombre:     c.cod_comision ?? String(c.comisionId),
-=======
         setMaterias(Array.isArray(matList) ? matList : []);
         setProfesores(profList.map(p => ({
           id:          String(p.profesorId ?? p.dni),
@@ -133,7 +97,6 @@ function AsistenciaDocenteContenido() {
         setComisiones(comList.map(c => ({
           id:         String(c.comisionId),
           nombre:     c.cod_comision,
->>>>>>> dc349ca (feat: mejoras en app)
           profesorId: String(c.profesorId),
           materiaId:  String(c.materiaId),
           materia:    c.materia?.nombre ?? "",
