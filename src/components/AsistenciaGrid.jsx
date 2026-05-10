@@ -1,145 +1,132 @@
 "use client";
 
-// AsistenciaGrid.jsx
-// Grilla original preservada. Cambios mínimos:
-//  - Quita columna "ID" (no tiene valor para el usuario)
-//  - Reemplaza "Apellido" por prop headerNombre (default "Nombre y apellido")
-//  - Agrega columna "DNI" solo si el alumno tiene prop dni
-//  - Acepta prop titulo
-
 import { useMemo } from "react";
-import { DataGrid } from "@mui/x-data-grid";
-import { useRouter } from "next/navigation";
-import { Box, Typography, Button } from "@mui/material";
 
+/**
+ * AsistenciaGrid — Sin MUI, 100% Tailwind.
+ * Muestra la grilla de asistencia con P/A por fecha.
+ * En mobile: scroll horizontal sobre la tabla.
+ * Misma interfaz de props que antes — sin cambios en la lógica.
+ */
 export default function AsistenciaGrid({
-  fechas       = [],
-  alumnos      = [],
-  asistencias  = [],
-  titulo       = "Grilla de asistencias",
-  headerNombre = "Nombre y apellido",
-  mostrarDni   = true,
+  fechas        = [],
+  alumnos       = [],
+  asistencias   = [],
+  titulo        = "Grilla de asistencias",
+  headerNombre  = "Nombre y apellido",
+  mostrarDni    = true,
   mostrarVolver = true,
 }) {
   const asistenciaSet = useMemo(() => {
-    return new Set(asistencias.map((a) => `${a.alumnoId}-${a.fecha}`));
+    return new Set(asistencias.map(a => `${a.alumnoId}-${a.fecha}`));
   }, [asistencias]);
-
-  const router = useRouter();
 
   const fechasOrdenadas = useMemo(() => {
     return [...fechas].sort((a, b) => new Date(a) - new Date(b));
   }, [fechas]);
 
-  const columns = useMemo(() => {
-    const base = [
-      {
-        field: "apellido",
-        headerName: headerNombre,
-        minWidth: 220,
-        flex: 2,
-      },
-    ];
-
-    if (mostrarDni) {
-      base.push({
-        field: "dni",
-        headerName: "DNI",
-        minWidth: 110,
-        flex: 1,
-      });
-    }
-
-    const colsFechas = fechasOrdenadas.map((fecha) => ({
-      field: fecha,
-      headerName: formatearFecha(fecha),
-      width: fechasOrdenadas.length > 10 ? 75 : 95,
-      sortable: false,
-      filterable: false,
-      align: "center",
-      headerAlign: "center",
-      renderCell: (params) => {
-        const presente = params.value;
-        return (
-          <span style={{
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: 28,
-            height: 28,
-            borderRadius: "50%",
-            fontWeight: 700,
-            color:           presente ? "#166534" : "#991b1b",
-            backgroundColor: presente ? "#dcfce7" : "#fee2e2",
-          }}>
-            {presente ? "P" : "A"}
-          </span>
-        );
-      },
-    }));
-
-    return [...base, ...colsFechas];
-  }, [fechasOrdenadas, headerNombre, mostrarDni]);
-
-  const rows = useMemo(() => {
+  const filas = useMemo(() => {
     return alumnos
       .slice()
       .sort((a, b) => a.apellido.localeCompare(b.apellido))
-      .map((alumno) => {
-        const fila = {
-          id:      alumno.id,
-          apellido: alumno.apellido,
-          dni:     alumno.dni ?? alumno.id,
-        };
-        fechasOrdenadas.forEach((fecha) => {
-          fila[fecha] = asistenciaSet.has(`${alumno.id}-${fecha}`);
-        });
-        return fila;
-      });
+      .map(alumno => ({
+        id:      alumno.id,
+        nombre:  alumno.apellido,
+        dni:     alumno.dni ?? alumno.id,
+        fechas:  fechasOrdenadas.map(f => ({
+          fecha:    f,
+          presente: asistenciaSet.has(`${alumno.id}-${f}`),
+        })),
+      }));
   }, [alumnos, fechasOrdenadas, asistenciaSet]);
 
+  if (alumnos.length === 0 && fechas.length === 0) {
+    return (
+      <div className="rounded-2xl bg-white px-5 py-10 text-center text-sm text-gray-400 shadow-sm ring-1 ring-gray-200">
+        No hay datos de asistencia para mostrar.
+      </div>
+    );
+  }
+
   return (
-    <Box sx={{
-      backgroundColor: "#ffffff",
-      borderRadius: 3,
-      padding: 3,
-      boxShadow: "0 4px 14px rgba(0, 0, 0, 0.08)",
-    }}>
-      <Typography variant="h5" sx={{ mb: 2, fontWeight: 600 }}>
-        {titulo}
-      </Typography>
+    <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-gray-200">
 
-      <Box sx={{ width: "100%", overflowX: "auto" }}>
-        <Box sx={{ minWidth: 900, height: 520 }}>
-          <DataGrid
-            rows={rows}
-            columns={columns}
-            disableRowSelectionOnClick
-            hideFooterSelectedRowCount
-            pageSizeOptions={[10, 20, 30]}
-            initialState={{
-              pagination: { paginationModel: { pageSize: 20, page: 0 } },
-            }}
-          />
-        </Box>
-      </Box>
+      {/* Título */}
+      <div className="border-b border-gray-100 bg-gray-50 px-5 py-4">
+        <h2 className="text-base font-semibold text-gray-800">{titulo}</h2>
+        <p className="mt-0.5 text-xs text-gray-500">
+          {alumnos.length} {alumnos.length === 1 ? "persona" : "personas"} · {fechasOrdenadas.length} clases
+        </p>
+      </div>
 
-      {mostrarVolver && (
-        <Button
-          variant="outlined"
-          color="error"
-          fullWidth
-          onClick={() => router.push("/")}
-          sx={{ mt: 3, py: 1.5, borderRadius: 3, textTransform: "none", fontWeight: 500 }}
-        >
-          ← Volver al menú principal
-        </Button>
-      )}
-    </Box>
+      {/* Tabla con scroll horizontal en mobile */}
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm" style={{ minWidth: Math.max(400, 200 + fechasOrdenadas.length * 70) }}>
+          <thead>
+            <tr className="border-b border-gray-100 bg-gray-50">
+              <th className="sticky left-0 z-10 bg-gray-50 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 min-w-[160px]">
+                {headerNombre}
+              </th>
+              {mostrarDni && (
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 min-w-[100px]">
+                  DNI
+                </th>
+              )}
+              {fechasOrdenadas.map(f => (
+                <th key={f} className="px-2 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-500 min-w-[56px]">
+                  {formatearFecha(f)}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {filas.length === 0 ? (
+              <tr>
+                <td colSpan={2 + fechasOrdenadas.length} className="px-5 py-8 text-center text-sm text-gray-400">
+                  No hay registros.
+                </td>
+              </tr>
+            ) : filas.map(fila => (
+              <tr key={fila.id} className="transition hover:bg-gray-50">
+                <td className="sticky left-0 z-10 bg-white px-4 py-3 font-medium text-gray-800 hover:bg-gray-50">
+                  {fila.nombre}
+                </td>
+                {mostrarDni && (
+                  <td className="px-4 py-3 font-mono text-xs text-gray-500">{fila.dni}</td>
+                )}
+                {fila.fechas.map(({ fecha, presente }) => (
+                  <td key={fecha} className="px-2 py-3 text-center">
+                    <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
+                      presente
+                        ? "bg-green-100 text-green-700"
+                        : "bg-red-100 text-red-600"
+                    }`}>
+                      {presente ? "P" : "A"}
+                    </span>
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Leyenda */}
+      <div className="border-t border-gray-100 px-5 py-3 flex gap-4 text-xs text-gray-400">
+        <span className="flex items-center gap-1">
+          <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-green-100 text-xs font-bold text-green-700">P</span>
+          Presente
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-red-100 text-xs font-bold text-red-600">A</span>
+          Ausente
+        </span>
+      </div>
+    </div>
   );
 }
 
 function formatearFecha(fecha) {
-  const [anio, mes, dia] = fecha.split("-");
-  return `${dia}/${mes}/${anio}`;
+  const [, mes, dia] = fecha.split("-");
+  return `${dia}/${mes}`;
 }

@@ -3,13 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import { useRouter } from "next/navigation";
-import { Button } from "@mui/material";
 
 // Decodifica una imagen usando 3 estrategias en orden
 async function decodificarImagen(file) {
   const bitmap = await createImageBitmap(file);
 
-  // 1. BarcodeDetector nativo (Chrome/Edge - el más rápido y preciso)
+  // 1. BarcodeDetector nativo (Chrome/Edge - más rápido)
   if (typeof window !== "undefined" && "BarcodeDetector" in window) {
     try {
       const detector = new window.BarcodeDetector({ formats: ["qr_code"] });
@@ -33,7 +32,7 @@ async function decodificarImagen(file) {
   });
   if (code) return code.data;
 
-  // 3. jsQR con la imagen escalada a 1024px (funciona mejor con imágenes muy grandes o muy chicas)
+  // 3. jsQR escalado a 1024px
   const TAM     = 1024;
   const canvas2 = document.createElement("canvas");
   canvas2.width = canvas2.height = TAM;
@@ -130,11 +129,16 @@ export default function LectorQR() {
 
   return (
     <div className="flex flex-col gap-4">
+
+      {/* Selector de cámara — ✅ foco verde en lugar de azul */}
       <div>
         <label className="mb-1 block text-sm font-medium text-gray-700">Cámara disponible</label>
-        <select value={camaraId} onChange={(e) => setCamaraId(e.target.value)}
-          className="w-full rounded-xl border border-gray-300 px-3 py-2 outline-none focus:border-blue-500"
-          disabled={escaneando}>
+        <select
+          value={camaraId}
+          onChange={(e) => setCamaraId(e.target.value)}
+          disabled={escaneando}
+          className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-200 disabled:opacity-50"
+        >
           {camaras.length === 0
             ? <option value="">No hay cámaras detectadas</option>
             : camaras.map((cam) => (
@@ -144,47 +148,70 @@ export default function LectorQR() {
         </select>
       </div>
 
+      {/* Botones de acción */}
       <div className="flex flex-col gap-3 sm:flex-row">
         {!escaneando ? (
-          <button type="button" onClick={iniciarScanner}
-            className="w-full rounded-xl bg-green-600 px-4 py-3 font-medium text-white transition hover:bg-green-700">
+          <button
+            type="button"
+            onClick={iniciarScanner}
+            className="w-full rounded-xl bg-green-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-green-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
+          >
             Activar cámara
           </button>
         ) : (
-          <button type="button" onClick={detenerScanner}
-            className="w-full rounded-xl bg-red-600 px-4 py-3 font-medium text-white transition hover:bg-red-700">
+          <button
+            type="button"
+            onClick={detenerScanner}
+            className="w-full rounded-xl bg-red-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+          >
             Detener lector
           </button>
         )}
 
-        <label className={`w-full cursor-pointer rounded-xl px-4 py-3 text-center font-medium text-white transition ${cargando ? "bg-blue-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"}`}>
+        <label
+          className={`w-full cursor-pointer rounded-xl px-4 py-3 text-center text-sm font-semibold text-white transition ${
+            cargando ? "cursor-not-allowed bg-green-400" : "bg-green-600 hover:bg-green-700"
+          }`}
+        >
           {cargando ? "Procesando..." : "Cargar imagen QR"}
-          <input type="file" accept="image/*" onChange={leerImagen} className="hidden" disabled={cargando} />
+          <input type="file" accept="image/*" onChange={leerImagen} className="sr-only" disabled={cargando} />
         </label>
       </div>
 
-      <div id="reader" className="min-h-[300px] w-full overflow-hidden rounded-xl border border-gray-300 bg-gray-50" />
+      {/* Área del scanner */}
+      <div
+        id="reader"
+        className="min-h-[300px] w-full overflow-hidden rounded-xl border border-gray-200 bg-gray-50"
+      />
 
+      {/* Resultado exitoso */}
       {resultado && (
         <div className="rounded-xl border border-green-300 bg-green-50 p-4">
           <p className="mb-2 text-sm font-semibold text-green-700">✅ QR leído correctamente</p>
-          <a href={resultado}
-            className="inline-block rounded-xl bg-green-600 px-4 py-2 text-white transition hover:bg-green-700">
+          <a
+            href={resultado}
+            className="inline-block rounded-xl bg-green-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-800"
+          >
             Continuar registro de asistencia
           </a>
         </div>
       )}
 
+      {/* Error */}
       {error && (
         <div className="rounded-xl border border-red-300 bg-red-50 p-4">
           <p className="text-sm font-semibold text-red-700">{error}</p>
         </div>
       )}
 
-      <Button variant="outlined" color="error" fullWidth onClick={() => router.push("/")}
-        sx={{ mt: 1, py: 1.5, borderRadius: 3, textTransform: "none", fontWeight: 500 }}>
+      {/* ✅ Cancelar: gris neutro — no rojo (rojo = errores, no acciones secundarias) */}
+      <button
+        type="button"
+        onClick={() => router.push("/")}
+        className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-600 transition hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400"
+      >
         Cancelar
-      </Button>
+      </button>
     </div>
   );
 }

@@ -1,30 +1,46 @@
 "use client";
 
-// ============================================================
-// components/RegistroAsistencia.js
-// ============================================================
-// FIXES:
-//  ✅ Selector Estudiante / Docente (antes solo funcionaba para alumnos)
-//  ✅ Lee el token de los searchParams correctamente
-//  ✅ Valida que lleguen los parámetros antes de llamar al backend
-//  ✅ Enter en el campo DNI dispara el registro
-//  ✅ Limpia DNI y mensajes tras registro exitoso
-// ============================================================
-
 import { useEffect, useState } from "react";
 import {
   Box, Paper, Typography, TextField, Button,
   Alert, CircularProgress, ToggleButton, ToggleButtonGroup,
 } from "@mui/material";
 
+const BACK_URL = process.env.NEXT_PUBLIC_BACK_URL;
+
+/**
+ * RegistroAsistencia — flujo según si el usuario está logueado:
+ *
+ * CON sesión (alumno/docente logueado):
+ *   → Registra automáticamente usando los datos del JWT guardado en localStorage
+ *   → No pide DNI ni selector de rol (ya los sabe)
+ *   → Muestra nombre del usuario y un botón "Registrar mi asistencia"
+ *
+ * SIN sesión (escaneó el QR sin estar logueado):
+ *   → Muestra el formulario manual con selector de rol y campo DNI
+ *   → Mismo comportamiento de antes
+ */
 export default function RegistroAsistencia({ edificioId, aulaId, rtoken, fechaInicio, fechaFin }) {
   const [loading,     setLoading]     = useState(true);
   const [qrValido,    setQrValido]    = useState(false);
   const [msgError,    setMsgError]    = useState("");
   const [msgExito,    setMsgExito]    = useState("");
-  const [dni,         setDni]         = useState("");
   const [registrando, setRegistrando] = useState(false);
-  const [tipoUsuario, setTipoUsuario] = useState("ESTUDIANTE"); // ✅ selector de rol
+
+  // Modo manual (sin sesión)
+  const [dni,         setDni]         = useState("");
+  const [tipoUsuario, setTipoUsuario] = useState("ESTUDIANTE");
+
+  // Datos del usuario logueado (del localStorage)
+  const [usuarioLogueado, setUsuarioLogueado] = useState(null);
+
+  // Leer sesión del localStorage al montar
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("tekoa_user");
+      if (raw) setUsuarioLogueado(JSON.parse(raw));
+    } catch { /* ignorar */ }
+  }, []);
 
   // Validar QR al cargar
   useEffect(() => {
@@ -36,9 +52,7 @@ export default function RegistroAsistencia({ edificioId, aulaId, rtoken, fechaIn
         return;
       }
       try {
-        const res  = await fetch(
-          `${process.env.NEXT_PUBLIC_BACK_URL}/api/qr/validar?edificioId=${edificioId}&aulaId=${aulaId}&rtoken=${rtoken}`
-        );
+        const res  = await fetch(`${BACK_URL}/api/qr/validar?edificioId=${edificioId}&aulaId=${aulaId}&rtoken=${rtoken}`);
         const data = await res.json();
         if (!res.ok) {
           setQrValido(false);
@@ -56,27 +70,36 @@ export default function RegistroAsistencia({ edificioId, aulaId, rtoken, fechaIn
     validar();
   }, [edificioId, aulaId, rtoken]);
 
-  const registrar = async () => {
-    if (!dni.trim()) return;
+  // Registrar asistencia — acepta override de dni/tipo para el modo manual
+  const registrar = async (dniOverride, tipoOverride) => {
+    const dniFinal  = dniOverride  ?? dni.trim();
+    const tipoFinal = tipoOverride ?? tipoUsuario;
+
+    if (!dniFinal) return;
     setRegistrando(true);
     setMsgError("");
     setMsgExito("");
+
     try {
-      const res  = await fetch(
-        `${process.env.NEXT_PUBLIC_BACK_URL}/api/asistencias/registrar-desde-qr`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ tipoUsuario, usuarioId: dni.trim(), aulaId, rtoken, fechaInicio, fechaFin }),
-        }
-      );
+      // Intentar enviar con JWT si existe
+      const token   = localStorage.getItem("tekoa_token");
+      const headers = { "Content-Type": "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      const res  = await fetch(`${BACK_URL}/api/asistencias/registrar-desde-qr`, {
+        method: "POST",
+        headers,
+        body:   JSON.stringify({ tipoUsuario: tipoFinal, usuarioId: dniFinal, aulaId, rtoken, fechaInicio, fechaFin }),
+      });
       const data = await res.json();
+
       if (!res.ok) {
-        // 409 = ya estaba registrado → lo tratamos como info, no como error grave
-        res.status === 409 ? setMsgExito(data.message) : setMsgError(data.message || "Error al registrar.");
+        res.status === 409
+          ? setMsgExito(data.message)
+          : setMsgError(data.message || "Error al registrar.");
       } else {
         setMsgExito(data.message || "✅ Asistencia registrada");
-        setDni(""); // limpiar para el próximo alumno
+        setDni("");
       }
     } catch {
       setMsgError("Error de red. Verificá tu conexión.");
@@ -85,49 +108,120 @@ export default function RegistroAsistencia({ edificioId, aulaId, rtoken, fechaIn
     }
   };
 
+  // Mapa de rol del sistema → tipoUsuario del backend
+  const rolToTipo = { alumno: "ESTUDIANTE", docente: "PROFESOR", administrador: "PROFESOR" };
+
   return (
-    <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh" bgcolor="#f5f5f5" px={2}>
+    <Box display="flex" justifyContent="center" px={2} py={4}>
       <Paper elevation={4} sx={{ p: 4, maxWidth: 420, width: "100%", borderRadius: 3 }}>
+
         <Typography variant="h5" fontWeight="bold" gutterBottom align="center">
           Registro de asistencia
         </Typography>
 
-        {loading && <Box display="flex" justifyContent="center" py={3}><CircularProgress/></Box>}
+        {/* Spinner de validación del QR */}
+        {loading && (
+          <Box display="flex" justifyContent="center" py={3}>
+            <CircularProgress sx={{ color: "#1B5E20" }} />
+          </Box>
+        )}
 
+        {/* QR inválido */}
         {!loading && !qrValido && (
           <Alert severity="error">{msgError}</Alert>
         )}
 
+        {/* QR válido ─────────────────────────────────────────── */}
         {!loading && qrValido && (
           <>
-            <Alert severity="success" sx={{ mb: 3 }}>
-              QR válido. Ingresá tu DNI para registrar asistencia.
-            </Alert>
+            {/* ── MODO AUTOMÁTICO: usuario logueado ── */}
+            {usuarioLogueado ? (
+              <>
+                <Alert severity="success" sx={{ mb: 3 }}>
+                  QR válido. Tu asistencia se va a registrar automáticamente.
+                </Alert>
 
-            {/* Selector de rol */}
-            <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>Soy:</Typography>
-            <ToggleButtonGroup value={tipoUsuario} exclusive fullWidth sx={{ mb: 3 }}
-              onChange={(_, v) => { if (v) { setTipoUsuario(v); setMsgError(""); setMsgExito(""); } }}>
-              <ToggleButton value="ESTUDIANTE">Estudiante</ToggleButton>
-              <ToggleButton value="PROFESOR">Docente</ToggleButton>
-            </ToggleButtonGroup>
+                {/* Tarjeta del usuario */}
+                <Box sx={{
+                  mb: 3, p: 2, borderRadius: 2,
+                  bgcolor: "#F0FFF4", border: "1px solid #A5D6A7",
+                  display: "flex", flexDirection: "column", gap: 0.5,
+                }}>
+                  <Typography variant="body2" color="text.secondary" fontSize={12}>
+                    Registrando como
+                  </Typography>
+                  <Typography variant="body1" fontWeight={700} color="#1B5E20">
+                    {usuarioLogueado.nombre}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    DNI: {usuarioLogueado.dni} &nbsp;·&nbsp;
+                    {usuarioLogueado.rol === "alumno" ? "Estudiante" : "Docente"}
+                  </Typography>
+                </Box>
 
-            <TextField fullWidth label="DNI" value={dni} margin="normal"
-              inputProps={{ inputMode: "numeric" }}
-              onChange={e => { setDni(e.target.value); setMsgError(""); setMsgExito(""); }}
-              onKeyDown={e => { if (e.key === "Enter" && dni.trim()) registrar(); }}
-            />
+                {/* Botón único */}
+                <Button
+                  fullWidth variant="contained"
+                  sx={{ py: 1.5, bgcolor: "#1B5E20", "&:hover": { bgcolor: "#2E7D32" } }}
+                  disabled={registrando || !!msgExito}
+                  onClick={() => registrar(
+                    usuarioLogueado.dni,
+                    rolToTipo[usuarioLogueado.rol] ?? "ESTUDIANTE"
+                  )}
+                >
+                  {registrando
+                    ? <CircularProgress size={22} color="inherit" />
+                    : "Registrar mi asistencia"}
+                </Button>
+              </>
+            ) : (
+              /* ── MODO MANUAL: sin sesión ── */
+              <>
+                <Alert severity="success" sx={{ mb: 3 }}>
+                  QR válido. Ingresá tu DNI para registrar asistencia.
+                </Alert>
 
-            <Button fullWidth variant="contained" color="primary" sx={{ mt: 2, py: 1.5 }}
-              disabled={!dni.trim() || registrando} onClick={registrar}>
-              {registrando ? <CircularProgress size={22} color="inherit"/> : "Registrar asistencia"}
-            </Button>
+                <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>Soy:</Typography>
+                <ToggleButtonGroup
+                  value={tipoUsuario} exclusive fullWidth sx={{ mb: 3 }}
+                  onChange={(_, v) => { if (v) { setTipoUsuario(v); setMsgError(""); setMsgExito(""); } }}
+                >
+                  <ToggleButton value="ESTUDIANTE" sx={{ "&.Mui-selected": { bgcolor: "#1B5E20", color: "white", "&:hover": { bgcolor: "#2E7D32" } } }}>
+                    Estudiante
+                  </ToggleButton>
+                  <ToggleButton value="PROFESOR" sx={{ "&.Mui-selected": { bgcolor: "#1B5E20", color: "white", "&:hover": { bgcolor: "#2E7D32" } } }}>
+                    Docente
+                  </ToggleButton>
+                </ToggleButtonGroup>
 
-            {msgError && <Alert severity="error"  sx={{ mt: 2 }}>{msgError}</Alert>}
+                <TextField
+                  fullWidth label="DNI" value={dni} margin="normal"
+                  inputProps={{ inputMode: "numeric" }}
+                  onChange={e => { setDni(e.target.value); setMsgError(""); setMsgExito(""); }}
+                  onKeyDown={e => { if (e.key === "Enter" && dni.trim()) registrar(); }}
+                  sx={{
+                    "& .MuiOutlinedInput-root": { "&.Mui-focused fieldset": { borderColor: "#1B5E20" } },
+                    "& .MuiInputLabel-root.Mui-focused": { color: "#1B5E20" },
+                  }}
+                />
+
+                <Button
+                  fullWidth variant="contained"
+                  sx={{ mt: 2, py: 1.5, bgcolor: "#1B5E20", "&:hover": { bgcolor: "#2E7D32" } }}
+                  disabled={!dni.trim() || registrando}
+                  onClick={() => registrar()}
+                >
+                  {registrando ? <CircularProgress size={22} color="inherit" /> : "Registrar asistencia"}
+                </Button>
+
+                {msgError && <Alert severity="error" sx={{ mt: 2 }}>{msgError}</Alert>}
+              </>
+            )}
+
+            {/* Mensaje de éxito — aparece en ambos modos */}
+            {msgExito && <Alert severity="success" sx={{ mt: 2 }}>{msgExito}</Alert>}
           </>
         )}
-
-        {msgExito && <Alert severity="success" sx={{ mt: 2 }}>{msgExito}</Alert>}
       </Paper>
     </Box>
   );
