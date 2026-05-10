@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import PropTypes from "prop-types";
 
 /**
  * ProtectedRoute — Protege páginas que requieren autenticación.
@@ -23,7 +24,12 @@ import { useAuth } from "@/context/AuthContext";
  *     <MiPagina />
  *   </ProtectedRoute>
  */
-export default function ProtectedRoute({ children, roles =  [] ,}) {
+//export default function ProtectedRoute({ children, roles =  [] ,}) {
+export default function ProtectedRoute(props) {
+  const {
+    children,
+    roles = [],
+  } = props;
   const router               = useRouter();
   const { usuario, loading } = useAuth();
 
@@ -66,3 +72,8 @@ export default function ProtectedRoute({ children, roles =  [] ,}) {
 
   return children;
 }
+
+ProtectedRoute.propTypes = {
+  children: PropTypes.node,
+  roles: PropTypes.arrayOf(PropTypes.string),
+};
