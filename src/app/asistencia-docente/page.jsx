@@ -16,7 +16,7 @@ export default function AsistenciaDocentePage() {
 }
 
 // ── Descarga CSV con asistencia del docente ──────────────────
-function descargarExcel({ titulo, docentes, fechas, asistencias }) {
+function descargarExcel({ titulo, docentes, fechas, asistencias }: any) {
   const BOM = "\uFEFF";
   const encabezados = ["Docente", ...fechas].join(";");
   const asisSet = new Set(asistencias.map(a => `${a.alumnoId}-${a.fecha}`));
