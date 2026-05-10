@@ -23,7 +23,7 @@ import { useAuth } from "@/context/AuthContext";
  *     <MiPagina />
  *   </ProtectedRoute>
  */
-export default function ProtectedRoute({ children, roles = [] }) {
+export default function ProtectedRoute({ children, roles = null }) {
   const router               = useRouter();
   const { usuario, loading } = useAuth();
 
@@ -36,7 +36,7 @@ export default function ProtectedRoute({ children, roles = [] }) {
     }
 
     if (roles.length > 0 && !roles.includes(usuario.rol)) {
-      router.replace("/");
+      router.push("/");
     }
   }, [loading, usuario, roles, router]);
 
