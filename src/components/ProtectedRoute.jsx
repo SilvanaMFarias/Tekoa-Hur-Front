@@ -52,9 +52,16 @@ export default function ProtectedRoute({ children, roles = null }) {
     );
   }
 
-  // Sin sesión o rol incorrecto → null (el useEffect ya redirigió)
+ // Sin sesión
   if (!usuario) return null;
-  if (roles.length > 0 && !roles.includes(usuario.rol)) return null;
+
+  // Rol inválido
+  if (
+    tieneRoles &&
+    !roles.includes(usuario.rol)
+  ) {
+    return null;
+  }
 
   return children;
 }
