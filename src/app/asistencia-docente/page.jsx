@@ -16,7 +16,7 @@ export default function AsistenciaDocentePage() {
 }
 
 // ── Descarga CSV con asistencia del docente ──────────────────
-function descargarExcel({ titulo, docentes, fechas, asistencias }) {
+function descargarExcel({ titulo, docentes, fechas, asistencias }: any) {
   const BOM = "\uFEFF";
   const encabezados = ["Docente", ...fechas].join(";");
   const asisSet = new Set(asistencias.map(a => `${a.alumnoId}-${a.fecha}`));
@@ -109,7 +109,7 @@ function AsistenciaDocenteContenido() {
                         ? `${c.horarios[0].horaDesde?.slice(0,5)} – ${c.horarios[0].horaHasta?.slice(0,5)}`
                         : "",
         })));
-      } catch (e: any) {
+      } catch (e) {
         setError(e.message ?? "Error.");
       } finally { setLoadingCat(false); }
     })();
@@ -148,18 +148,21 @@ function AsistenciaDocenteContenido() {
         ]);
         if (!resAsis.ok) throw new Error("Error cargando asistencias");
 
-        const registros: any[]   = await resAsis.json();
+        const registros = await resAsis.json();
         const profesoresR = resProf.ok ? await resProf.json() : [];
 
-        const profMap: Record<string, {nombre: string, dni: string}> = {};
+        //const profMap: Record<string, {nombre: string, dni: string}> = {}; Pueto para TS
+        const profMap = {};
         for (const p of profesoresR) {
           if (p.dni) profMap[String(p.dni)] = { nombre: p.nombre_apellido, dni: p.dni };
         }
 
-        const soloDocentes = registros.filter((r: any) => r.tipoUsuario === "PROFESOR");
-        const fechasOrd    = [...new Set<string>(soloDocentes.map((r: any) => r.fecha).filter(Boolean))].sort();
+       //const soloDocentes = registros.filter((r: any) => r.tipoUsuario === "PROFESOR"); Puestos para TS
+        const soloDocentes = registros.filter((r) => r.tipoUsuario === "PROFESOR");
+        const fechasOrd    = [...new Set(soloDocentes.map((r) => r.fecha).filter(Boolean))].sort();
 
-        const docentesMap = new Map<string, {id: string, apellido: string}>();
+        //const docentesMap = new Map<string, {id: string, apellido: string}>(); Para TS
+        const docentesMap = new Map();
         for (const r of soloDocentes) {
           const key  = String(r.usuarioId);
           const prof = profMap[key];
@@ -169,13 +172,13 @@ function AsistenciaDocenteContenido() {
         }
 
         const asis = soloDocentes
-          .filter((r: any) => r.estado === "PRESENTE")
-          .map((r: any) => ({ alumnoId: String(r.usuarioId), fecha: r.fecha }));
+          .filter((r) => r.estado === "PRESENTE")
+          .map((r) => ({ alumnoId: String(r.usuarioId), fecha: r.fecha }));
 
         setFechas(fechasOrd);
         setDocentes([...docentesMap.values()]);
         setAsistencias(asis);
-      } catch (e: any) {
+      } catch (e) {
         setError(e.message ?? "Error.");
       } finally { setLoading(false); }
     })();
@@ -355,6 +358,6 @@ function AsistenciaDocenteContenido() {
   );
 }
 
-function cap(s: string) {
+function cap(s) {
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 }
