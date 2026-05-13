@@ -63,12 +63,12 @@ export default function ProtectedRoute(props) {
   if (!usuario) return null;
 
   // Rol inválido
-  if (
-    tieneRoles &&
-    !roles.includes(usuario.rol)
-  ) {
-    return null;
-  }
+  //if (
+  //  tieneRoles &&
+  //  !roles.includes(usuario.rol)
+  //) {
+  //  return null;
+  //}
 
   return children;
 }
