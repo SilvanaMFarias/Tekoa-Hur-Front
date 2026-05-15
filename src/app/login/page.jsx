@@ -111,9 +111,14 @@ export default function LoginPage() {
         </form>
 
         <p className="mt-5 text-center text-xs text-gray-400">
+          ¿Olvidaste tu contraseña? <a href="/forgot-password" className="text-green-600 hover:underline">Recupérala aquí</a>.
+        </p>
+
+        <p className="mt-5 text-center text-xs text-gray-400">
           ¿Problemas para ingresar? Contactá al Área Académica.
         </p>
       </div>
+
     </div>
   );
 }
