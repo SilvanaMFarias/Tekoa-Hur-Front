@@ -71,6 +71,62 @@ export function AuthProvider({ children }) {
     }
   }
 
+async function forgotPassword(email) {
+  try {
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_BACK_URL}/api/auth/forgot-password`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: String(email).trim(),
+        }),
+      }
+    );
+
+    const data = await res.json();
+
+    return {
+      ok: res.ok,
+      message: data.message,
+    };
+  } catch {
+    return {
+      ok: false,
+      message: "No se pudo conectar con el servidor.",
+    };
+  }
+}
+
+async function resetPassword(email, token, password) {
+  try {
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_BACK_URL}/api/auth/reset-password`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          token,
+          password,
+        }),
+      }
+    );
+
+    const data = await res.json();
+
+    return {
+      ok: res.ok,
+      message: data.message,
+    };
+  } catch {
+    return {
+      ok: false,
+      message: "No se pudo conectar con el servidor.",
+    };
+  }
+}
+
   /** logout — Limpia la sesión local. */
   function logout() {
     setToken(null);
@@ -82,7 +138,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ usuario, token, loading, login, logout }}>
+    <AuthContext.Provider value={{ usuario, token, loading, login, logout, resetPassword, forgotPassword }}>
       {children}
     </AuthContext.Provider>
   );

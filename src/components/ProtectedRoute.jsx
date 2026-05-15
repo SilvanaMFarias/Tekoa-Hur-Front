@@ -30,22 +30,33 @@ export default function ProtectedRoute(props) {
     children,
     roles = [],
   } = props;
-  const router               = useRouter();
+
+  const router = useRouter();
   const { usuario, loading } = useAuth();
+
+  // Normalización para evitar problemas por mayúsculas/espacios
+  const tieneRoles = roles?.length > 0;
+  const rolUsuario = usuario?.rol?.trim()?.toLowerCase();
+  const rolesPermitidos = roles.map(r => r.trim().toLowerCase());
 
   useEffect(() => {
     if (loading) return; // esperar a que hidrate
+
+    console.log("USUARIO EN PROTECTED ROUTE:", usuario);
 
     if (!usuario) {
       router.replace("/login");
       return;
     }
 
+    console.log("ROL USUARIO:", rolUsuario);
+    console.log("ROLES PERMITIDOS:", rolesPermitidos);
+
     //if (roles.length > 0 && !roles.includes(usuario.rol)) {}
-    if (roles?.length > 0 && !roles.includes(usuario.rol)) {
-      router.push("/");
+    if (tieneRoles && !rolesPermitidos.includes(rolUsuario)) {
+      router.replace("/");
     }
-  }, [loading, usuario, roles, router]);
+  }, [loading, usuario, roles, router, rolUsuario, rolesPermitidos, tieneRoles]);
 
   // Mientras hidrata → spinner centrado
   if (loading) {
@@ -59,13 +70,13 @@ export default function ProtectedRoute(props) {
     );
   }
 
- // Sin sesión
+  // Sin sesión
   if (!usuario) return null;
 
   // Rol inválido
   if (
     tieneRoles &&
-    !roles.includes(usuario.rol)
+    !rolesPermitidos.includes(rolUsuario)
   ) {
     return null;
   }
